@@ -30,7 +30,7 @@ resource "random_string" "client_secret" {
 }
 
 resource "azuread_application" "example" {
-  display_name = "K6Scope Data Crawl App"
+  display_name = "kaleidoscope-blueprint"
 
   owners = [
     data.azurerm_client_config.current.object_id
