@@ -1,4 +1,4 @@
-## Terraform Script for Deploying Azure AD Application
+## Usage of this module
 
 This Terraform script defines infrastructure as code to deploy an Azure Active Directory (AD) application and outputs some information about the created resources.
 
