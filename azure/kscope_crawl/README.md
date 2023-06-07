@@ -8,7 +8,7 @@ The `azurerm_subscription` and `azurerm_client_config` data sources are used to 
 
 The `random_string` resource generates a random string that will be used as the client secret for the Azure AD application.
 
-The `azuread_application` resource creates an Azure AD application with a display name of "K6Scope Data Crawl App" and assigns an owner based on the `object_id` of the current client configuration. It also specifies a required resource access to a specific scope.
+The `azuread_application` resource creates an Azure AD application with a display name of "kaleidoscope-blueprint" and assigns an owner based on the `object_id` of the current client configuration. It also specifies a required resource access to a specific scope.
 
 Finally, the script uses `output` blocks to print the values of the following resources:
 
