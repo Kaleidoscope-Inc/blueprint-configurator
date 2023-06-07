@@ -105,7 +105,7 @@ resource "azurerm_monitor_diagnostic_setting" "storage_account_logs" {
   }
 }
 
-// Print client id
+//print client id
 output "client_id" {
   value = azuread_application.example.application_id
 }
