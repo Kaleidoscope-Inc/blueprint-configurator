@@ -47,8 +47,8 @@ resource "azuread_application" "example" {
 }
 
 resource "azurerm_resource_group" "example" {
-  name     = "storage-rg"
-  location = "eastus"
+  name     = var.resource_group_name
+  location = var.resource_group_location
 }
 
 resource "azurerm_storage_account" "example" {
