@@ -66,7 +66,7 @@ resource "azurerm_storage_container" "example" {
 }
 
 resource "azurerm_storage_queue" "example" {
-  name                 = "kscopemyqueue"
+  name                 = "kaleidoscopeactivitylogsqueue"
   storage_account_name = azurerm_storage_account.example.name
 }
 
