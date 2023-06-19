@@ -6,6 +6,11 @@ This Terraform script defines infrastructure as code to deploy an Azure storage 
 
 The script sets up an Azure storage account, container, and queue, and enables diagnostic logging and metrics for the storage account. It also creates an Azure AD application with a display name of "kaleidoscope-blueprint" and assigns an owner based on the `object_id` of the current client configuration. It specifies a required resource access to a specific scope. The script provides outputs to retrieve information about the created resources.
 
+### How to run the script
+Run `terraform init` to initialize the Terraform configuration.
+
+Run `terraform apply -var-file="terraform.tfvars"` to apply the configuration using the provided variable values.
+
 ### Terraform Configuration
 
 The script uses the `azurerm` and `azuread` providers to interact with Azure resources, which are defined in the `required_providers` block at the top.
