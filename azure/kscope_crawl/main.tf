@@ -24,10 +24,16 @@ provider "azurerm" {
 
 data "azurerm_subscription" "current" {}
 data "azurerm_client_config" "current" {}
+data "azuread_application_published_app_ids" "well_known" {}
 
 resource "random_string" "client_secret" {
   length  = 16
   special = true
+}
+
+resource "azuread_service_principal" "msgraph" {
+  application_id = data.azuread_application_published_app_ids.well_known.result.MicrosoftGraph
+  use_existing   = true
 }
 
 resource "azuread_application" "example" {
@@ -38,10 +44,18 @@ resource "azuread_application" "example" {
   ]
 
   required_resource_access {
-    resource_app_id = "00000002-0000-0000-c000-000000000000"
+    resource_app_id = data.azuread_application_published_app_ids.well_known.result.MicrosoftGraph
     resource_access {
-      id   = "e1fe6dd8-ba31-4d61-89e7-88639da4683d"
-      type = "Scope"
+      id = azuread_service_principal.msgraph.app_role_ids["User.Read.All"]
+      type = "Role"
+    }
+    resource_access {
+      id = azuread_service_principal.msgraph.app_role_ids["Group.Read.All"]
+      type = "Role"
+    }
+    resource_access {
+      id = azuread_service_principal.msgraph.app_role_ids["RoleManagement.Read.All"]
+      type = "Role"
     }
   }
 }
