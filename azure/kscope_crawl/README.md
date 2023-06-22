@@ -1,5 +1,12 @@
 ## Usage of this module
 
+### Permissions required in Azure AD
+Please make sure that you have the 'Application Administrator' or 'Global Administrator' role in Azure Active Directory. Otherwise, the script will have insufficient privileges to update the Azure AD service principal with the specified object ID.
+
+Ensure that you have the appropriate permissions assigned and try running the Terraform operation again. If you are unsure about your permissions or need additional access, reach out to your Azure AD administrator or the appropriate security team within your organization to request the necessary privileges.
+
+### Description of the code
+
 This Terraform script defines infrastructure as code to deploy an Azure Active Directory (AD) application and outputs some information about the created resources.
 
 The script uses the `azurerm` and `azuread` providers to interact with Azure resources, which are defined in the `required_providers` block at the top.
@@ -8,7 +15,10 @@ The `azurerm_subscription` and `azurerm_client_config` data sources are used to 
 
 The `random_string` resource generates a random string that will be used as the client secret for the Azure AD application.
 
-The `azuread_application` resource creates an Azure AD application with a display name of "kaleidoscope-blueprint" and assigns an owner based on the `object_id` of the current client configuration. It also specifies a required resource access to a specific scope.
+The `azuread_application` resource creates an Azure AD application with a display name of "kaleidoscope-blueprint" and assigns an owner based on the `object_id` of the current client configuration. It assigns these permission roles using MS Graph to the app:
+- `User.Read.All`
+- `Group.Read.All`
+- `RoleManagement.Read.All`
 
 Finally, the script uses `output` blocks to print the values of the following resources:
 
