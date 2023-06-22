@@ -60,7 +60,7 @@ resource "azuread_application" "example" {
 }
 
 //print client id
-output "cient_id" {
+output "client_id" {
   value = azuread_application.example.application_id
 }
 
