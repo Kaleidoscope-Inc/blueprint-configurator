@@ -18,13 +18,6 @@ Run `terraform apply -var-file="terraform.tfvars"` to apply the configuration us
 
 ### Description of the code
 
-### Permissions required in Azure AD
-Please make sure that you have the 'Application Administrator' or 'Global Administrator' role in Azure Active Directory. Otherwise, the script will have insufficient privileges to update the Azure AD service principal with the specified object ID.
-
-Ensure that you have the appropriate permissions assigned and try running the Terraform operation again. If you are unsure about your permissions or need additional access, reach out to your Azure AD administrator or the appropriate security team within your organization to request the necessary privileges.
-
-### Description of the code
-
 This Terraform script defines infrastructure as code to deploy an Azure Active Directory (AD) application and outputs some information about the created resources.
 
 The script uses the `azurerm` and `azuread` providers to interact with Azure resources, which are defined in the `required_providers` block at the top.
