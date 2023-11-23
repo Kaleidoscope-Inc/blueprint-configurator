@@ -31,20 +31,6 @@ resource "aws_sqs_queue_policy" "sqs-queue-policy" {
         "Resource" : "arn:aws:sqs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:"
       },
       {
-        "Sid" : "kaleidoscope-sns-topic-subscription",
-        "Effect" : "Allow",
-        "Principal" : {
-          "AWS" : "*"
-        },
-        "Action" : "SQS:SendMessage",
-        "Resource" : "arn:aws:sqs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:${local.aws_sqs_queue}",
-        "Condition" : {
-          "ArnLike" : {
-            "aws:SourceArn" : "arn:aws:sns:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:${local.aws_sns_topic}"
-          }
-        }
-      },
-      {
         "Sid" : "allow-crawl-user",
         "Effect" : "Allow",
         "Principal" : {
@@ -54,14 +40,24 @@ resource "aws_sqs_queue_policy" "sqs-queue-policy" {
         },
         "Action" : "sqs:*",
         "Resource" : "${aws_sqs_queue.sqs-queue.arn}"
+      },
+      {
+        "Sid" : "allow-event-bus-rule",
+        "Effect" : "Allow",
+        "Principal" : {
+          "Service" : [
+            "events.amazonaws.com"
+          ]
+        },
+        "Action" : "sqs:SendMessage",
+        "Resource" : "${aws_sqs_queue.sqs-queue.arn}",
+        "Condition" : {
+          "ArnEquals" : {
+            "aws:SourceArn" : "${aws_cloudwatch_event_rule.kscope_crawler_rule.arn}"
+          }
+        }
       }
     ]
   })
 
-}
-
-resource "aws_sns_topic_subscription" "sns-topic-sqs-target" {
-  topic_arn = aws_sns_topic.sns-topic.arn
-  protocol  = "sqs"
-  endpoint  = aws_sqs_queue.sqs-queue.arn
 }
