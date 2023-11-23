@@ -9,7 +9,7 @@ resource "aws_s3_bucket" "s3-bucket" {
 
 resource "aws_s3_bucket_public_access_block" "aws-bucket-access-block" {
   count  = var.create_trail ? 1 : 0
-  bucket = aws_s3_bucket.s3-bucket.id
+  bucket = aws_s3_bucket.s3-bucket[0].id
 
   block_public_acls       = true
   block_public_policy     = true
@@ -24,7 +24,7 @@ resource "aws_s3_bucket_public_access_block" "aws-bucket-access-block" {
 
 resource "aws_s3_bucket_policy" "aws-bucket-policy" {
   count  = var.create_trail ? 1 : 0
-  bucket = aws_s3_bucket.s3-bucket.id
+  bucket = aws_s3_bucket.s3-bucket[0].id
 
   policy = jsonencode({
     Version : "2012-10-17",
@@ -37,7 +37,7 @@ resource "aws_s3_bucket_policy" "aws-bucket-policy" {
         },
         Action : "s3:GetBucketAcl",
         Resource : [
-          aws_s3_bucket.s3-bucket.arn
+          aws_s3_bucket.s3-bucket[0].arn
         ]
       },
       {
@@ -48,7 +48,7 @@ resource "aws_s3_bucket_policy" "aws-bucket-policy" {
         },
         Action : "s3:PutObject",
         Resource : [
-          "${aws_s3_bucket.s3-bucket.arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/*",
+          "${aws_s3_bucket.s3-bucket[0].arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/*",
         ]
         Condition : {
           StringEquals : {
@@ -64,7 +64,7 @@ resource "aws_cloudtrail" "cloudtrail" {
   count = var.create_trail ? 1 : 0
   name  = local.cloudtrail_name
 
-  s3_bucket_name                = aws_s3_bucket.s3-bucket.id
+  s3_bucket_name                = aws_s3_bucket.s3-bucket[0].id
   include_global_service_events = true
   is_multi_region_trail         = true
 
@@ -97,7 +97,7 @@ resource "aws_cloudtrail" "cloudtrail" {
     # filters out events for objects in the s3 bucket which is used by this trail to store its logs otherwise it creates a cyclical series of events. 
     field_selector {
       field           = "resources.ARN"
-      not_starts_with = ["${aws_s3_bucket.s3-bucket.arn}/"]
+      not_starts_with = ["${aws_s3_bucket.s3-bucket[0].arn}/"]
     }
   }
 
