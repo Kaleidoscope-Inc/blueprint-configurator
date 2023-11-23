@@ -13,3 +13,9 @@ variable "aws_region" {
   type    = string
   default = "us-east-2"
 }
+
+variable "create_trail" {
+  type        = bool
+  default     = false
+  description = "Whether to provision a cloudtrail trail. If this is false, it assumes you are using an Organization level trail in the management account"
+}

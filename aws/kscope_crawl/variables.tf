@@ -33,6 +33,12 @@ variable "aws_sqs_queue" {
   default     = "trail-queue"
 }
 
+variable "create_trail" {
+  type        = bool
+  default     = false
+  description = "Whether to provision a cloudtrail trail. If this is false, it assumes you are using an Organization level trail in the management account"
+}
+
 locals {
   prefix          = var.resource_prefix
   cloudtrail_name = "${local.prefix}-${var.cloudtrail_name}"

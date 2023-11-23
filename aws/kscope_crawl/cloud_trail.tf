@@ -1,12 +1,14 @@
 
 
 resource "aws_s3_bucket" "s3-bucket" {
+  count         = var.create_trail ? 1 : 0
   bucket        = local.aws_s3_bucket
   force_destroy = true
   acl           = "private"
 }
 
 resource "aws_s3_bucket_public_access_block" "aws-bucket-access-block" {
+  count  = var.create_trail ? 1 : 0
   bucket = aws_s3_bucket.s3-bucket.id
 
   block_public_acls       = true
@@ -21,6 +23,7 @@ resource "aws_s3_bucket_public_access_block" "aws-bucket-access-block" {
 
 
 resource "aws_s3_bucket_policy" "aws-bucket-policy" {
+  count  = var.create_trail ? 1 : 0
   bucket = aws_s3_bucket.s3-bucket.id
 
   policy = jsonencode({
@@ -57,79 +60,13 @@ resource "aws_s3_bucket_policy" "aws-bucket-policy" {
   })
 }
 
-resource "aws_sns_topic" "sns-topic" {
-  name = local.aws_sns_topic
-
-  delivery_policy = jsonencode({
-    "http" : {
-      "defaultHealthyRetryPolicy" : {
-        "minDelayTarget" : 20,
-        "maxDelayTarget" : 20,
-        "numRetries" : 3,
-        "numMaxDelayRetries" : 0,
-        "numNoDelayRetries" : 0,
-        "numMinDelayRetries" : 0,
-        "backoffFunction" : "linear"
-      },
-      "disableSubscriptionOverrides" : false,
-      "defaultThrottlePolicy" : {
-        "maxReceivesPerSecond" : 1
-      }
-    }
-  })
-}
-
-resource "aws_sns_topic_policy" "sns_topic_policy" {
-  arn = aws_sns_topic.sns-topic.arn
-
-  policy = jsonencode({
-    "Version" : "2008-10-17",
-    "Id" : "__default_policy_ID",
-    "Statement" : [
-      {
-        "Sid" : "__default_statement_ID",
-        "Effect" : "Allow",
-        "Principal" : {
-          "AWS" : "*"
-        },
-        "Action" : [
-          "SNS:GetTopicAttributes",
-          "SNS:SetTopicAttributes",
-          "SNS:AddPermission",
-          "SNS:RemovePermission",
-          "SNS:DeleteTopic",
-          "SNS:Subscribe",
-          "SNS:ListSubscriptionsByTopic",
-          "SNS:Publish",
-          "SNS:Receive"
-        ],
-        "Resource" : "${aws_sns_topic.sns-topic.arn}",
-        "Condition" : {
-          "StringEquals" : {
-            "AWS:SourceOwner" : "${data.aws_caller_identity.current.account_id}"
-          }
-        }
-      },
-      {
-        "Sid" : "AWSCloudTrailSNSPolicy20150319",
-        "Effect" : "Allow",
-        "Principal" : {
-          "Service" : "cloudtrail.amazonaws.com"
-        },
-        "Action" : "SNS:Publish",
-        "Resource" : "${aws_sns_topic.sns-topic.arn}"
-      }
-    ]
-  })
-}
-
 resource "aws_cloudtrail" "cloudtrail" {
-  name = local.cloudtrail_name
+  count = var.create_trail ? 1 : 0
+  name  = local.cloudtrail_name
 
   s3_bucket_name                = aws_s3_bucket.s3-bucket.id
   include_global_service_events = true
   is_multi_region_trail         = true
-  sns_topic_name                = aws_sns_topic.sns-topic.name
 
 
   # DS; enables all management events.
@@ -165,7 +102,6 @@ resource "aws_cloudtrail" "cloudtrail" {
   }
 
   depends_on = [
-    aws_sns_topic.sns-topic,
     aws_s3_bucket_public_access_block.aws-bucket-access-block,
     aws_s3_bucket_policy.aws-bucket-policy
   ]

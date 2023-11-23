@@ -25,6 +25,7 @@ module "kscope_crawl" {
   source          = "./kscope_crawl"
   bucket_name     = var.bucket_name
   resource_prefix = var.resource_prefix
+  create_trail    = var.create_trail
 }
 
 
