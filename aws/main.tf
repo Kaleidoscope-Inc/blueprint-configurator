@@ -18,12 +18,14 @@ terraform {
 
 
 provider "aws" {
-  region = "us-east-2"
+  region = var.aws_region
 }
 
 module "kscope_crawl" {
-  source      = "./kscope_crawl"
-  bucket_name = var.bucket_name
+  source          = "./kscope_crawl"
+  bucket_name     = var.bucket_name
+  resource_prefix = var.resource_prefix
+  create_trail    = var.create_trail
 }
 
 
