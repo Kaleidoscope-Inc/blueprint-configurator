@@ -57,9 +57,14 @@ To use these Terraform scripts, ensure that you have the following prerequisites
 2. Navigate to the respective module directory (`azure` or `aws`).
 3. Configure the required variables and provider settings in the `variables.tf` and `provider.tf` files.
 4. Run `terraform init` to initialize the working directory.
-5. Run `terraform plan` to review the planned infrastructure changes.
-6. Run `terraform apply` to apply the changes and provision the resources.
-7. After successful provisioning, the outputs will be displayed. Make note of the relevant information for further use.
+5. For the next commands its mandatory to pass the S3 bucket name as a variable for storing SQS logs. To get the bucket name perform the following steps:
+    1. Run `terraform state list` to get the list of all the states.
+    2. Look for a state with `s3-bucket`. Use this state in the next command to show bucket details.
+    3. Run `terraform state show <state_name>` to get the bucket name.
+    4. Use the bucket name from this information and pass it as a variable in the next commands
+6. Run `terraform plan` to review the planned infrastructure changes.
+7. Run `terraform apply` to apply the changes and provision the resources.
+8. After successful provisioning, the outputs will be displayed. Make note of the relevant information for further use.
 
 ## Cleanup
 
