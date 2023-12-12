@@ -37,7 +37,8 @@ Our system supports two distinct methods for crawling events, allowing flexibili
 
 ### 1. CloudTrail to SQS/S3
 
-In this method, events are ingested from AWS CloudTrail. The events are either delivered AWS S3 bucket through an Amazon Simple Queue Service (SQS). This approach provides a scalable and durable solution for capturing events.
+In this method, events are ingested from AWS CloudTrail. The events are either delivered to an AWS S3 bucket through an Amazon Simple Queue Service (SQS). This applies to AWS accounts that do not have an organizational-level CloudTrail enabled, 
+and hence a custom CrawlTrail needs to be created. This approach provides a scalable and durable solution for capturing events.
 
 To set up this method, set the terraform variable `cloud_trail` as `true` while applying the terraform changes. Its default value is false, which makes the second method default choice.
 
