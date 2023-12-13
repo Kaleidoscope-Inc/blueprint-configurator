@@ -9,7 +9,7 @@ resource "aws_sqs_queue" "sqs-queue" {
   delay_seconds              = 0
   max_message_size           = 262144
   receive_wait_time_seconds  = 0
-  sqs_managed_sse_enabled    = false
+  sqs_managed_sse_enabled    = true
 }
 
 resource "aws_sqs_queue_policy" "sqs-queue-policy" {
