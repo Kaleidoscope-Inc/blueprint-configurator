@@ -29,7 +29,24 @@ The following outputs are provided:
 
 ## AWS Module
 
-The AWS module provisions AWS resources using Terraform. It creates the following resources:
+The AWS module provisions AWS resources using Terraform. 
+
+### Event Crawling Methods
+
+Our system supports two distinct methods for crawling events, allowing flexibility based on your AWS environment and requirements.
+
+### 1. CloudTrail to SQS/S3
+
+In this method, events are ingested from AWS CloudTrail. The events are either delivered to an AWS S3 bucket through an Amazon Simple Queue Service (SQS). This applies to AWS accounts that do not have an organizational-level CloudTrail enabled, 
+and hence a custom CrawlTrail needs to be created. This approach provides a scalable and durable solution for capturing events.
+
+To set up this method, set the terraform variable `cloud_trail` as `true` while applying the terraform changes. Its default value is false, which makes the second method default choice.
+
+### 2. Organizational CloudTrail to EventBridge
+
+With this method, events are sourced from AWS CloudTrail at an organizational level and delivered to Amazon EventBridge. This allows for a centralized and organized event stream across your entire AWS organization.
+
+It creates the following resources:
 
 - An AWS S3 bucket with the specified name.
 - Other AWS resources and configurations defined in the `./kscope_crawl` module.
@@ -57,9 +74,14 @@ To use these Terraform scripts, ensure that you have the following prerequisites
 2. Navigate to the respective module directory (`azure` or `aws`).
 3. Configure the required variables and provider settings in the `variables.tf` and `provider.tf` files.
 4. Run `terraform init` to initialize the working directory.
-5. Run `terraform plan` to review the planned infrastructure changes.
-6. Run `terraform apply` to apply the changes and provision the resources.
-7. After successful provisioning, the outputs will be displayed. Make note of the relevant information for further use.
+5. For the next commands its mandatory to pass the S3 bucket name as a variable for storing SQS logs. To get the bucket name perform the following steps:
+    1. Run `terraform state list` to get the list of all the states.
+    2. Look for a state with `s3-bucket`. Use this state in the next command to show bucket details.
+    3. Run `terraform state show <state_name>` to get the bucket name.
+    4. Use the bucket name from this information and pass it as a variable in the next commands
+6. Run `terraform plan` to review the planned infrastructure changes.
+7. Run `terraform apply` to apply the changes and provision the resources.
+8. After successful provisioning, the outputs will be displayed. Make note of the relevant information for further use.
 
 ## Cleanup
 

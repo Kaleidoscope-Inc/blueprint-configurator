@@ -39,7 +39,7 @@ For event crawls to work we need the following infrastructure:
 ![](./images/crawl_infra.png)
 
 
-# Setting up events in AWS manually
+# Setting up events in AWS manually (Deprecated)
 
 This is not needed anymore since we have this Terraform module doing the creation and management for us but this is still kept here for legacy reasons.
 
