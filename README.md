@@ -31,39 +31,7 @@ The following outputs are provided:
 
 The AWS module provisions AWS resources using Terraform. 
 
-### Event Crawling Methods
-
-Our system supports two distinct setup mechanism to support event crawling.
-
-### 1. Tenant Specific Data & Management CloudTrail trail
-
-Using this option assumes that you do not have an organization level CloudTrail trail. The `aws` terraform application will proceed to setup an account specific CloudTrail trail that is able to capture both Management and Data Events.
-
-To set up this method, set the terraform variable `cloud_trail` as `true` while applying the terraform changes. Its default value is false, which makes the second method default choice.
-
-Additionally, the events are delivered to an AWS S3 bucket. This creates a durable storage for the events.
-
-### 2. Organizational CloudTrail to EventBridge
-
-With this method, events are sourced from AWS CloudTrail at an organizational level and delivered to Amazon EventBridge. This allows for a centralized and organized event stream across your entire AWS organization.
-
-If you are using this approach, you need to set `cloud_trail` as `false`. This will prevent the `aws` terraform application from provisioning an additional CloudTrail trail against the account you are running this terraform - which is the crawl account.
-
-However, when you only execute the `aws` terraform with `cloud_trail` as `false`, you will only receive `Management Events`. No `Data Events` will be captured by the `EventBridge rules`. To receive `Data Events` as well, you need to execute the `aws_organization_trail` terraform app. This should be executed against the *Management Account, not the Crawl Account*. The terraform app will create an additional organizational level CloudTrail trail that captures Data Events.
-
-Both approaches above make use of the default EventBridge for each AWS account, by adding a rule to the account you want to crawl. This rule forwards the events to the SQS queue provisioned by the `aws` terraform app. View the image below for a graphical overview (The image omits a couple of other resources provisioned by `aws` TF for the sake of simplicity in showing the 2 approaches):
-
-![Terraform Configurator drawio](https://github.com/Kaleidoscope-Inc/blueprint-configurator/assets/2979095/18ee9d76-c8c2-4871-984c-4e15133fae58)
-
-
-### Outputs
-
-The following outputs are provided:
-
-- `accessKey`: The access key for the AWS account used to create the resources.
-- `secretKey`: The secret key associated with the access key.
-- `sqsURL`: The URL of the created AWS Simple Queue Service (SQS) queue.
-- `accountID`: The AWS account ID associated with the created resources.
+[Read more](./aws/README.md)
 
 ## Prerequisites
 
