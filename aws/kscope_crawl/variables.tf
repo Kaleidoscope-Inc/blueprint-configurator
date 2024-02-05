@@ -21,12 +21,6 @@ variable "bucket_name" {
   description = "The name of the s3 bucket that is used by cloudtrail to store its log file. Please note that the eventual name of this resoruce is {resource_prefix}-{bucke_name} and it has to be globally unique."
 }
 
-variable "aws_sns_topic" {
-  description = "The name of the sns topic that the aforementioned cloudtrail sends its log delivery notification to. For more information on why this is needed, see README "
-  type        = string
-  default     = "trail-topic"
-}
-
 variable "aws_sqs_queue" {
   description = "The name of the aws sqs queue that subscribes to the sns topic. AWS's aws crawler polls this queue to get latest event log files. For more info see README"
   type        = string
@@ -43,7 +37,6 @@ locals {
   prefix          = var.resource_prefix
   cloudtrail_name = "${local.prefix}-${var.cloudtrail_name}"
   aws_s3_bucket   = "${local.prefix}-${var.bucket_name}"
-  aws_sns_topic   = "${local.prefix}-${var.aws_sns_topic}"
   aws_iam_user    = "${local.prefix}-${var.aws_iam_user}"
   aws_sqs_queue   = "${local.prefix}-${var.aws_sqs_queue}"
 }

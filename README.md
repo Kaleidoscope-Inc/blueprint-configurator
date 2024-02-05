@@ -31,34 +31,7 @@ The following outputs are provided:
 
 The AWS module provisions AWS resources using Terraform. 
 
-### Event Crawling Methods
-
-Our system supports two distinct methods for crawling events, allowing flexibility based on your AWS environment and requirements.
-
-### 1. CloudTrail to SQS/S3
-
-In this method, events are ingested from AWS CloudTrail. The events are either delivered to an AWS S3 bucket through an Amazon Simple Queue Service (SQS). This applies to AWS accounts that do not have an organizational-level CloudTrail enabled, 
-and hence a custom CrawlTrail needs to be created. This approach provides a scalable and durable solution for capturing events.
-
-To set up this method, set the terraform variable `cloud_trail` as `true` while applying the terraform changes. Its default value is false, which makes the second method default choice.
-
-### 2. Organizational CloudTrail to EventBridge
-
-With this method, events are sourced from AWS CloudTrail at an organizational level and delivered to Amazon EventBridge. This allows for a centralized and organized event stream across your entire AWS organization.
-
-It creates the following resources:
-
-- An AWS S3 bucket with the specified name.
-- Other AWS resources and configurations defined in the `./kscope_crawl` module.
-
-### Outputs
-
-The following outputs are provided:
-
-- `accessKey`: The access key for the AWS account used to create the resources.
-- `secretKey`: The secret key associated with the access key.
-- `sqsURL`: The URL of the created AWS Simple Queue Service (SQS) queue.
-- `accountID`: The AWS account ID associated with the created resources.
+[Read more](./aws/README.md)
 
 ## Prerequisites
 
