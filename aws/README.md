@@ -69,6 +69,16 @@ For event crawls to work we need the following infrastructure:
 |aws_sqs_queue|string|trail-queue|AWS's aws crawler polls this queue to get latest event log files|
 |create_trail|bool|false|Whether to provision a cloudtrail trail. If this is false, it assumes you are using an Organization level trail in the management account|
 
+# Outputs
+
+The following outputs are provided:
+
+- `accessKey`: The access key for the AWS account used to create the resources.
+- `secretKey`: The secret key associated with the access key.
+- `sqsURL`: The URL of the created AWS Simple Queue Service (SQS) queue.
+- `accountID`: The AWS account ID associated with the created resources.
+
+
 
 
 
