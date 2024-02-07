@@ -1,14 +1,14 @@
 
 
 resource "aws_s3_bucket" "s3-bucket" {
-  count         = var.create_trail ? 1 : 0
+  count         = var.cloudtrail_bucket_name != "" ? 1 : 0
   bucket        = local.aws_s3_bucket
   force_destroy = true
   acl           = "private"
 }
 
 resource "aws_s3_bucket_public_access_block" "aws-bucket-access-block" {
-  count  = var.create_trail ? 1 : 0
+  count  = var.cloudtrail_bucket_name != "" ? 1 : 0
   bucket = aws_s3_bucket.s3-bucket[0].id
 
   block_public_acls       = true
@@ -23,7 +23,7 @@ resource "aws_s3_bucket_public_access_block" "aws-bucket-access-block" {
 
 
 resource "aws_s3_bucket_policy" "aws-bucket-policy" {
-  count  = var.create_trail ? 1 : 0
+  count  = var.cloudtrail_bucket_name != "" ? 1 : 0
   bucket = aws_s3_bucket.s3-bucket[0].id
 
   policy = jsonencode({
@@ -61,7 +61,7 @@ resource "aws_s3_bucket_policy" "aws-bucket-policy" {
 }
 
 resource "aws_cloudtrail" "cloudtrail" {
-  count = var.create_trail ? 1 : 0
+  count = var.cloudtrail_bucket_name != "" ? 1 : 0
   name  = local.cloudtrail_name
 
   s3_bucket_name                = aws_s3_bucket.s3-bucket[0].id

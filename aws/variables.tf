@@ -1,6 +1,7 @@
-variable "bucket_name" {
+variable "cloudtrail_bucket_name" {
   type        = string
-  description = "The name of the s3 bucket that is used by cloudtrail to store its log file. Please note that the eventual name of this resoruce is {resource_prefix}-{bucke_name} and it has to be globally unique."
+  description = "The name of the s3 bucket that is used by cloudtrail to store its log file. Please note that the eventual name of this resource is {resource_prefix}-{bucket_name} and it has to be globally unique. The default for this is empty. Cloudtrail will only be created when a value for this variable is set."
+  default     = ""
 }
 
 variable "resource_prefix" {
@@ -14,8 +15,12 @@ variable "aws_region" {
   default = "us-east-2"
 }
 
-variable "create_trail" {
-  type        = bool
-  default     = false
-  description = "Whether to provision a cloudtrail trail. If this is false, it assumes you are using an Organization level trail in the management account"
+variable "aws_access_key" {
+  type        = string
+  description = "The access key that will be used to create resources. It needs to have create permissions for S3, Cloudtrail, EventBridge, SQS, and IAM"
+}
+
+variable "aws_secret_key" {
+  type        = string
+  description = "The secret key associated with the access key."
 }
