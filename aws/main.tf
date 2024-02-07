@@ -7,25 +7,25 @@ terraform {
       version = ">= 4.9.0"
     }
   }
-
-  cloud {
-    organization = "KaleidoscopeInc"
-    workspaces {
-      tags = ["crawl"]
-    }
-  }
 }
 
 
 provider "aws" {
-  region = var.aws_region
+  region     = var.aws_region
+  access_key = var.aws_access_key
+  secret_key = var.aws_secret_key
+  default_tags {
+    tags = {
+      Org = "kaleidoscope"
+    }
+  }
+
 }
 
 module "kscope_crawl" {
-  source          = "./kscope_crawl"
-  bucket_name     = var.bucket_name
-  resource_prefix = var.resource_prefix
-  create_trail    = var.create_trail
+  source                 = "./kscope_crawl"
+  cloudtrail_bucket_name = var.cloudtrail_bucket_name
+  resource_prefix        = var.resource_prefix
 }
 
 
@@ -40,9 +40,5 @@ output "secretKey" {
 
 output "sqsURL" {
   value = module.kscope_crawl.sqsURL
-}
-
-output "accountID" {
-  value = module.kscope_crawl.accountID
 }
 

@@ -10,7 +10,3 @@ output "secretKey" {
 output "sqsURL" {
   value = aws_sqs_queue.sqs-queue.url
 }
-
-output "accountID" {
-  value = data.aws_caller_identity.current.id
-}
