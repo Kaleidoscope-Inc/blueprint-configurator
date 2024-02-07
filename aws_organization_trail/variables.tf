@@ -16,7 +16,7 @@ variable "resource_prefix" {
 
 variable "s3_bucket_name" {
   type        = string
-  description = "where the trail will save it's log files. should be identical to the management trail"
+  description = "where the trail will save its log files. should be identical to the management trail"
 }
 
 variable "s3_key_prefix" {

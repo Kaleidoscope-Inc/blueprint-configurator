@@ -4,7 +4,7 @@ This Terraform script defines infrastructure as code to deploy an Azure storage 
 
 ## Overview
 
-The script sets up an Azure storage account, container, and queue, and enables diagnostic logging and metrics for the storage account. It also creates an Azure AD application with a display name of "kaleidoscope-blueprint" and assigns an owner based on the `object_id` of the current client configuration. It specifies a required resource access to a specific scope. The script provides outputs to retrieve information about the created resources.
+The script sets up an Azure storage account, container, and queue, and enables diagnostic logging and metrics for the storage account. It also creates an Azure AD application with a display name of `kaleidoscope-blueprint` and assigns an owner based on the `object_id` of the current client configuration. It specifies a required resource access to a specific scope. The script provides outputs to retrieve information about the created resources.
 
 ### Permissions required in Azure AD
 Please make sure that you have the 'Application Administrator' or 'Global Administrator' role in Azure Active Directory. Otherwise, the script will have insufficient privileges to update the Azure AD service principal with the specified object ID.
@@ -28,17 +28,18 @@ The `random_string` resource generates a random string that will be used as the 
 
 ### Azure Resource Creation
 
-- **Resource Group**: A resource group named "storage-rg" is created in the "eastus" location.
-- **Storage Account**: An Azure storage account named "k6scopemystorageaccount" is created within the resource group. It uses the "Standard" tier and "LRS" replication type.
-- **Storage Container**: A storage container named "k6scopemycontainer" is created within the storage account. It has private access.
-- **Storage Queue**: A storage queue named "kscopemyqueue" is created within the storage account.
-- **Azure AD Application**: The `azuread_application` resource creates an Azure AD application with a display name of "kaleidoscope-blueprint" and assigns an owner based on the `object_id` of the current client configuration. It assigns these permission roles using MS Graph to the app:
+- **Resource Group**: A resource group named `storage-rg` is created in the `eastus` location.
+- **Storage Account**: An Azure storage account named `k6scopemystorageaccount` is created within the resource group. It uses the `Standard` tier and `LRS` replication type.
+- **Storage Container**: A storage container named `k6scopemycontainer` is created within the storage account. It has private access.
+- **Storage Queue**: A storage queue named `kscopemyqueue` is created within the storage account.
+- **Azure AD Application**: The `azuread_application` resource creates an Azure AD application with a display name of `kaleidoscope-blueprint` and assigns an owner based on the `object_id` of the current client configuration. It assigns these permission roles using MS Graph to the app:
 - `User.Read.All`
 - `Group.Read.All`
 - `RoleManagement.Read.All`
+
 ### Diagnostic Logging and Metrics
 
-A diagnostic setting named "storage-account-logs" is created to enable logging for the storage account. It targets the blob service of the storage account and enables logging for categories such as StorageRead, StorageWrite, StorageDelete, and AllMetrics. The retention policy for all logs is set to disabled.
+A diagnostic setting named `storage-account-logs` is created to enable logging for the storage account. It targets the blob service of the storage account and enables logging for categories such as StorageRead, StorageWrite, StorageDelete, and AllMetrics. The retention policy for all logs is set to disabled.
 
 ### Outputs
 
@@ -53,3 +54,4 @@ The script provides the following outputs to retrieve information about the crea
 - **data.azurerm_subscription.current.subscription_id**: The ID of the current Azure subscription.
 - **data.azurerm_client_config.current.tenant_id**: The ID of the Azure AD tenant associated with the current subscription.
 - **data.azurerm_client_config.current.object_id**: The object ID of the owner of the Azure AD application.
+- **client_id**: The client ID of the Azure AD application.
