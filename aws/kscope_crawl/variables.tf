@@ -36,7 +36,6 @@ variable "create_trail" {
 variable "environment" {
   description = "The name of the environment (e.g., dev, staging, prod)"
   type        = string
-  default     = "dev"
 }
 
 locals {
@@ -46,4 +45,5 @@ locals {
   aws_iam_user    = "${local.prefix}-${var.aws_iam_user}"
   aws_sqs_queue   = "${local.prefix}-${var.aws_sqs_queue}"
   env             = "${var.environment}"
+  name            = "${local.aws_sqs_queue}-${local.env}"
 }
