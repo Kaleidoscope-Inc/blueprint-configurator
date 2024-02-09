@@ -27,12 +27,6 @@ variable "aws_sqs_queue" {
   default     = "trail-queue"
 }
 
-variable "create_trail" {
-  type        = bool
-  default     = false
-  description = "Whether to provision a cloudtrail trail. If this is false, it assumes you are using an Organization level trail in the management account"
-}
-
 variable "environment" {
   description = "The name of the environment (e.g., dev, staging, prod)"
   type        = string
@@ -44,6 +38,5 @@ locals {
   aws_s3_bucket   = "${local.prefix}-${var.cloudtrail_bucket_name}"
   aws_iam_user    = "${local.prefix}-${var.aws_iam_user}"
   aws_sqs_queue   = "${local.prefix}-${var.aws_sqs_queue}"
-  env             = "${var.environment}"
-  name            = "${local.aws_sqs_queue}-${local.env}"
+  name            = "${local.aws_sqs_queue}-${var.environment}"
 }
