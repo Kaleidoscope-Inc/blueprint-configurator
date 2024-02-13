@@ -1,6 +1,6 @@
 resource "aws_sqs_queue" "sqs-queue" {
 
-  name = local.name
+  name = local.aws_sqs_queue_name
 
   // set to the default values
   fifo_queue                 = false

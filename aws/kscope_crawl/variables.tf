@@ -33,10 +33,10 @@ variable "environment" {
 }
 
 locals {
-  prefix          = var.resource_prefix
-  cloudtrail_name = "${local.prefix}-${var.cloudtrail_name}"
-  aws_s3_bucket   = "${local.prefix}-${var.cloudtrail_bucket_name}"
-  aws_iam_user    = "${local.prefix}-${var.aws_iam_user}"
-  aws_sqs_queue   = "${local.prefix}-${var.aws_sqs_queue}"
-  name            = "${local.aws_sqs_queue}-${var.environment}"
+  prefix              = var.resource_prefix
+  cloudtrail_name     = "${local.prefix}-${var.cloudtrail_name}"
+  aws_s3_bucket       = "${local.prefix}-${var.cloudtrail_bucket_name}"
+  aws_iam_user        = "${local.prefix}-${var.aws_iam_user}"
+  aws_sqs_queue       = "${local.prefix}-${var.aws_sqs_queue}"
+  aws_sqs_queue_name  = "${local.aws_sqs_queue}-${var.environment}"
 }
