@@ -5,10 +5,10 @@ terraform {
       version = ">= 2.0"
     }
     azuread = {
-      source  = "hashicorp/azuread"
+      source = "hashicorp/azuread"
     }
     random = {
-      source  = "hashicorp/random"
+      source = "hashicorp/random"
     }
   }
 }
@@ -46,15 +46,15 @@ resource "azuread_application" "example" {
   required_resource_access {
     resource_app_id = data.azuread_application_published_app_ids.well_known.result.MicrosoftGraph
     resource_access {
-      id = azuread_service_principal.msgraph.app_role_ids["User.Read.All"]
+      id   = azuread_service_principal.msgraph.app_role_ids["User.Read.All"]
       type = "Role"
     }
     resource_access {
-      id = azuread_service_principal.msgraph.app_role_ids["Group.Read.All"]
+      id   = azuread_service_principal.msgraph.app_role_ids["Group.Read.All"]
       type = "Role"
     }
     resource_access {
-      id = azuread_service_principal.msgraph.app_role_ids["RoleManagement.Read.All"]
+      id   = azuread_service_principal.msgraph.app_role_ids["RoleManagement.Read.All"]
       type = "Role"
     }
   }
@@ -89,7 +89,7 @@ locals {
 }
 
 resource "azurerm_monitor_diagnostic_setting" "storage_account_logs" {
-  name               = "storage-account-logs"
+  name               = "kaleidoscope-storage-account-logs"
   target_resource_id = local.resourceId
   storage_account_id = azurerm_storage_account.example.id
 
