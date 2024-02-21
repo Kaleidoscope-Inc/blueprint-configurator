@@ -4,20 +4,15 @@ The purpose of this Terraform module is to create resources in the AWS account t
 
 This README describes the usage of this module as well the resources that are created and their need.
 
-## Prerequisites
+## Requirements
 
-- Terraform installed (version >=1.1.9)
-- AWS CLI configured with appropriate access keys
+| Name | Version |
+|------|---------|
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >=1.1.9 |
 
 ## Variables
 
-| Name                 | Description                                                                                                   | Type    | Default     | Required |
-|----------------------|---------------------------------------------------------------------------------------------------------------|---------|-------------|----------|
-| aws_access_key       | The access key that will be used to create resources. It needs to have create permissions for S3, Cloudtrail, EventBridge, SQS, and IAM | string  | -           | Yes      |
-| aws_region           | The AWS region where resources will be created.                                                                | string  | "us-east-2" | No       |
-| aws_secret_key       | The secret key associated with the access key.                                                               | string  | -           | Yes      |
-| cloudtrail_bucket_name | The name of the S3 bucket used by CloudTrail to store its log files.                                           | string  | ""          | No       |
-| resource_prefix      | The prefix appended to the name of all created resources.                                                      | string  | "kscope"    | No       |
+[Read more](vars.md)
 
 ## Permissions Needed
 
@@ -42,7 +37,7 @@ The IAM user associated with the provided access key must have the following per
     4. Use the bucket name from this information and pass it as a variable in the next commands.
 6. Run `terraform plan` to review the planned infrastructure changes.
 7. Run `terraform apply` to apply the changes and provision the resources.
-8. After successful provisioning, the outputs will be displayed. Make note of the relevant information for further use.
+8. All of the output values will be shown when you run the apply command except the ```secretKey``` value since that is a sensitive value so Terraform by default hides it. You can run ```terraform output --json``` to show all output values in JSON format which will also show the ```secretKey```. These are to be used in aws blueprint configuration in Kaleidoscope app.
 
 ## Data Crawl
 
@@ -91,14 +86,6 @@ Both approaches above make use of the default EventBridge for each AWS account, 
 
 ![Event Crawl Diagram](https://github.com/Kaleidoscope-Inc/blueprint-configurator/assets/2979095/18ee9d76-c8c2-4871-984c-4e15133fae58)
 
-
-# Usage of this module
-
-The ```main.tf``` file shows how to import this module. We use Terraform's concept of local modules for now.
-
-[Read more](vars.md)
-
-All of the output values will be shown when you run the apply command except the ```secretKey``` value since that is a sensitive value so Terraform by default hides it. You can run ```terraform output --json``` to show all output values in JSON format which will also show the ```secretKey```.
 
 ## Cleanup
 

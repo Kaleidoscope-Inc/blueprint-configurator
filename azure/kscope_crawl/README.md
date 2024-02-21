@@ -8,23 +8,12 @@ The script sets up an Azure storage account, container, and queue, and enables d
 
 This Terraform script defines infrastructure as code to deploy an Azure storage account and an Azure Active Directory (AD) application. It enables diagnostic logging and metrics for the storage account and provides outputs to retrieve important information about the created resources.
 
-## Prerequisites
+## Requirements
 
-- Terraform installed
-- Azure CLI configured and authenticated
-- Appropriate permissions in Azure Active Directory (Application Administrator or Global Administrator role)
+| Name | Version |
+|------|---------|
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >=1.1.9 |
 
-## Variables
-
-| Name                   | Description                                                                      | Type   | Default Value | Required |
-|------------------------|----------------------------------------------------------------------------------|--------|---------------|----------|
-| azure_subscription_id  | The Azure subscription ID where resources will be created.                       | string | -             | Yes      |
-| azure_region           | The Azure region where resources will be deployed.                               | string | "eastus"      | No       |
-| client_id              | The client ID of the Azure AD application.                                        | string | -             | Yes      |
-| client_secret          | The client secret of the Azure AD application.                                    | string | -             | Yes      |
-| storage_account_name   | The name of the Azure storage account to be created.                              | string | "k6scopemystorageaccount" | No       |
-| storage_container_name | The name of the storage container to be created.                                  | string | "k6scopemycontainer"      | No       |
-| storage_queue_name     | The name of the storage queue to be created.                                      | string | "kscopemyqueue"           | No       |
 
 ## Permissions Needed
 
@@ -42,6 +31,7 @@ Ensure that the account used to run the Terraform script has the following permi
 5. Run `terraform plan -var-file="variables.tfvars"` to review the planned infrastructure changes.
 6. Run `terraform apply -var-file="variables.tfvars"` to apply the configuration and provision the resources.
 7. After successful provisioning, the outputs will be displayed. Make note of the relevant information for further use.
+8. You can run ```terraform output --json``` to show all output values in JSON format. These are to be used in azure blueprint configuration in Kaleidoscope app.
 
 ## Data Crawl
 
