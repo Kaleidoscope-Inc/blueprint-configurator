@@ -27,10 +27,15 @@ variable "aws_sqs_queue" {
   default     = "trail-queue"
 }
 
+variable "environment" {
+  description = "The name of the environment (e.g., dev, staging, prod)"
+  type        = string
+}
+
 locals {
-  prefix          = var.resource_prefix
-  cloudtrail_name = "${local.prefix}-${var.cloudtrail_name}"
-  aws_s3_bucket   = "${local.prefix}-${var.cloudtrail_bucket_name}"
-  aws_iam_user    = "${local.prefix}-${var.aws_iam_user}"
-  aws_sqs_queue   = "${local.prefix}-${var.aws_sqs_queue}"
+  prefix              = var.resource_prefix
+  cloudtrail_name     = "${local.prefix}-${var.cloudtrail_name}"
+  aws_s3_bucket       = "${local.prefix}-${var.cloudtrail_bucket_name}"
+  aws_iam_user        = "${local.prefix}-${var.aws_iam_user}"
+  aws_sqs_queue       = "${var.aws_sqs_queue}-${var.environment}"
 }
