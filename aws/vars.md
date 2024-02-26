@@ -1,24 +1,4 @@
 <!-- BEGIN_TF_DOCS -->
-## Requirements
-
-| Name | Version |
-|------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >=1.1.9 |
-| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 4.9.0 |
-
-## Providers
-
-No providers.
-
-## Modules
-
-| Name | Source | Version |
-|------|--------|---------|
-| <a name="module_kscope_crawl"></a> [kscope\_crawl](#module\_kscope\_crawl) | ./kscope_crawl | n/a |
-
-## Resources
-
-No resources.
 
 ## Inputs
 
@@ -34,7 +14,7 @@ No resources.
 
 | Name | Description |
 |------|-------------|
-| <a name="output_accessKey"></a> [accessKey](#output\_accessKey) | n/a |
-| <a name="output_secretKey"></a> [secretKey](#output\_secretKey) | n/a |
-| <a name="output_sqsURL"></a> [sqsURL](#output\_sqsURL) | n/a |
+| <a name="output_accessKey"></a> [accessKey](#output\_accessKey) | Access Key to be used for Kaleidoscope data crawl |
+| <a name="output_secretKey"></a> [secretKey](#output\_secretKey) | Secret Key to be used for Kaleidoscope data crawl |
+| <a name="output_sqsURL"></a> [sqsURL](#output\_sqsURL) | SQS URL to be used for Kaleidoscope event crawl |
 <!-- END_TF_DOCS -->
