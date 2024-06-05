@@ -24,3 +24,8 @@ variable "aws_secret_key" {
   type        = string
   description = "The secret key associated with the access key."
 }
+
+variable "environment" {
+  description = "The name of the environment (e.g., dev, staging, prod)"
+  type        = string
+}
