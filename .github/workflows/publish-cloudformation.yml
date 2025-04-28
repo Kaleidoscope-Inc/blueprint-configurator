@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - KA-8443  # Added for testing; REMOVE!
     paths:
       - 'aws_cf/aws.yml'
 

@@ -21,7 +21,7 @@ The CloudFormation template provisions:
 
 Click the link below to quickly deploy this template to your AWS account:
 
-[<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png" alt="Launch Stack">](https://console.aws.amazon.com/cloudformation/home?region=us-east-2#/stacks/quickcreate?templateURL=https://raw.githubusercontent.com/kaleidoscope-inc/blueprint-configurator/KA-8443/aws_cf/aws.yml&param_ResourcePrefix=kscope&stackName=kaleidoscope-blueprint)
+[<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png" alt="Launch Stack">](https://console.aws.amazon.com/cloudformation/home?region=us-east-2#/stacks/quickcreate?templateURL=https://kaleidoscope-blueprint-configurator.s3.amazonaws.com/aws/aws-latest.yml&param_ResourcePrefix=kscope&stackName=kaleidoscope-blueprint)
 
 ### Option 2: Manual Deployment
 
