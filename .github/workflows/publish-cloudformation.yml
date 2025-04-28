@@ -1,0 +1,55 @@
+name: Publish CloudFormation Template
+
+on:
+  push:
+    branches:
+      - master
+      - KA-8443  # Added for testing; REMOVE!
+    paths:
+      - 'aws_cf/aws.yml'
+
+jobs:
+  publish-to-s3:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for tags
+
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_BLUEPRINT_CONFIGURATOR }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_BLUEPRINT_CONFIGURATOR }}
+          aws-region: us-east-1
+
+      - name: Get version info
+        id: version
+        run: |
+          # Extract version from git
+          GIT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          VERSION=$(echo $GIT_TAG | sed 's/^v//')
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          
+          # Set outputs for use in later steps
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "commit=${COMMIT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Upload CloudFormation template with version
+        run: |
+          # Upload versioned template
+          aws s3 cp aws_cf/aws.yml \
+            s3://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}/aws/aws-${{ steps.version.outputs.version }}-${{ steps.version.outputs.commit }}.yml \
+            --content-type "text/yaml"
+          
+          # Upload as latest
+          aws s3 cp aws_cf/aws.yml \
+            s3://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}/aws/aws-latest.yml \
+            --content-type "text/yaml"
+
+      - name: Output template URLs
+        run: |
+          echo "Templates published successfully!"
+          echo "Latest template URL: https://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}.s3.amazonaws.com/aws/aws-latest.yml"
+          echo "Versioned template URL: https://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}.s3.amazonaws.com/aws/aws-${{ steps.version.outputs.version }}-${{ steps.version.outputs.commit }}.yml"
