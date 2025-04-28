@@ -1,0 +1,189 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template to create resources for Kaleidoscope AWS Blueprint'
+
+Parameters:
+  ResourcePrefix:
+    Type: String
+    Default: 'kscope'
+    Description: The prefix that will be appended to names of all resources created
+    
+  CloudTrailBucketName:
+    Type: String
+    Default: ''
+    Description: >
+      The name of the S3 bucket for CloudTrail logs. When empty, assumes an organizational 
+      CloudTrail exists. The final bucket name will be {ResourcePrefix}-{CloudTrailBucketName}.
+    
+Conditions:
+  CreateCloudTrail: !Not [!Equals [!Ref CloudTrailBucketName, '']]
+
+Resources:
+  # IAM User with Read-Only Access for Data Crawl
+  IAMUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub '${ResourcePrefix}-crawl-user'
+      Path: "/"
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/ReadOnlyAccess'
+
+  IAMAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref IAMUser
+
+  # SQS Queue for Event Collection
+  SQSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ResourcePrefix}-trail-queue'
+      MessageRetentionPeriod: 345600  # 4 days
+      VisibilityTimeout: 30
+      DelaySeconds: 0
+      MaximumMessageSize: 262144
+      ReceiveMessageWaitTimeSeconds: 0
+      SqsManagedSseEnabled: true
+
+  SQSQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref SQSQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: OwnerStatement
+            Effect: Allow
+            Principal:
+              AWS: !Sub '${AWS::AccountId}'
+            Action: 'SQS:*'
+            Resource: !GetAtt SQSQueue.Arn
+          - Sid: AllowCrawlUser
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt IAMUser.Arn
+            Action: 'SQS:*'
+            Resource: !GetAtt SQSQueue.Arn
+          - Sid: AllowEventBridgeRule
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: 'SQS:SendMessage'
+            Resource: !GetAtt SQSQueue.Arn
+            Condition:
+              ArnEquals:
+                'aws:SourceArn': !GetAtt EventBridgeRule.Arn
+
+  # EventBridge Rule to Capture CloudTrail Events
+  EventBridgeRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ResourcePrefix}-event-rule'
+      Description: 'Filters events from CloudTrail to an SQS Queue'
+      EventPattern: '{"detail-type":["AWS API Call via CloudTrail"]}'
+      State: ENABLED
+      Targets:
+        - Id: SQSTarget
+          Arn: !GetAtt SQSQueue.Arn
+
+  # Conditional Resources - Created only when CloudTrailBucketName is not empty
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Condition: CreateCloudTrail
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Sub '${ResourcePrefix}-${CloudTrailBucketName}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  S3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: CreateCloudTrail
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AWSCloudTrailAclCheck
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: 's3:GetBucketAcl'
+            Resource: !GetAtt S3Bucket.Arn
+          - Sid: AWSCloudTrailWrite
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: 's3:PutObject'
+            Resource: !Sub '${S3Bucket.Arn}/AWSLogs/${AWS::AccountId}/*'
+            Condition:
+              StringEquals:
+                's3:x-amz-acl': 'bucket-owner-full-control'
+
+  CloudTrail:
+    Type: AWS::CloudTrail::Trail
+    Condition: CreateCloudTrail
+    DependsOn:
+      - S3BucketPolicy
+    Properties:
+      TrailName: !Sub '${ResourcePrefix}-trail'
+      S3BucketName: !Ref S3Bucket
+      IncludeGlobalServiceEvents: true
+      IsMultiRegion: true
+      EnableLogFileValidation: true
+      EventSelectors:
+        # Management events
+        - ReadWriteType: All
+          IncludeManagementEvents: true
+        # S3 data events
+        - ReadWriteType: All
+          IncludeManagementEvents: false
+          DataResources:
+            - Type: AWS::S3::Object
+              Values:
+                - 'arn:aws:s3'
+        # Lambda data events
+        - ReadWriteType: All
+          IncludeManagementEvents: false
+          DataResources:
+            - Type: AWS::Lambda::Function
+              Values:
+                - 'arn:aws:lambda'
+        # DynamoDB data events
+        - ReadWriteType: All
+          IncludeManagementEvents: false
+          DataResources:
+            - Type: AWS::DynamoDB::Table
+              Values:
+                - 'arn:aws:dynamodb'
+
+  # Store credentials securely in Secrets Manager
+  AccessKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '/${ResourcePrefix}/crawler/access-key'
+      Description: 'Access key for Kaleidoscope crawler'
+      SecretString: !Ref IAMAccessKey
+
+  SecretKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '/${ResourcePrefix}/crawler/secret-key'
+      Description: 'Secret key for Kaleidoscope crawler'
+      SecretString: !GetAtt IAMAccessKey.SecretAccessKey
+
+Outputs:
+  AccessKeySecretName:
+    Description: "Secrets Manager secret containing the access key for Kaleidoscope data crawl"
+    Value: !Sub '/${ResourcePrefix}/crawler/access-key'
+  
+  SecretKeySecretName:
+    Description: "Secrets Manager secret containing the secret key for Kaleidoscope data crawl"
+    Value: !Sub '/${ResourcePrefix}/crawler/secret-key'
+  
+  SQSURL:
+    Description: SQS URL to be used for Kaleidoscope event crawl
+    Value: !Ref SQSQueue
