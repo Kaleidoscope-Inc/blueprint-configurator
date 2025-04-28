@@ -132,8 +132,9 @@ Resources:
       TrailName: !Sub '${ResourcePrefix}-trail'
       S3BucketName: !Ref S3Bucket
       IncludeGlobalServiceEvents: true
-      IsMultiRegion: true
+      IsMultiRegionTrail: true
       EnableLogFileValidation: true
+      IsLogging: true
       EventSelectors:
         # Management events
         - ReadWriteType: All

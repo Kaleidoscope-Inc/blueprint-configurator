@@ -1,6 +1,6 @@
 # Blueprint-configurator Repository
 
-This repository contains Terraform scripts to prepare different operational sources to be crawled by Kaleidoscope. It currently has support for Azure and AWS.
+This repository contains infrastructure-as-code templates to prepare different operational sources to be crawled by Kaleidoscope. It currently has support for Azure and AWS.
 
 ## Overview of Kaleidoscope crawler logic
 
@@ -24,9 +24,15 @@ Both data and event crawls are essential for maintaining visibility and control 
 
 [Read more](./azure/kscope_crawl/README.md)
 
-## AWS Module
+### AWS Module
 
-[Read more](./aws/README.md)
+AWS blueprint can be configured using either CloudFormation or Terraform:
+
+- **CloudFormation (Recommended)**: Our CloudFormation template provides a simpler, more streamlined experience for setting up the required AWS resources.
+  - [Read more](./aws_cf/README.md)
+
+- **Terraform**: We maintain Terraform scripts for AWS as an alternative option.
+  - [Read more](./aws/README.md)
 
 For more information and detailed usage instructions, refer to the specific module's documentation in their respective directories.
 
