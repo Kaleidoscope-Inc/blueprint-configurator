@@ -2,27 +2,26 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: 'CloudFormation template to create resources for Kaleidoscope AWS Blueprint'
 
 Parameters:
-  ResourcePrefix:
+  CreateAccountLevelCloudTrail:
     Type: String
-    Default: 'kscope'
-    Description: The prefix that will be appended to names of all resources created
-    
-  CloudTrailBucketName:
-    Type: String
-    Default: ''
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
     Description: >
-      The name of the S3 bucket for CloudTrail logs. When empty, assumes an organizational 
-      CloudTrail exists. The final bucket name will be {ResourcePrefix}-{CloudTrailBucketName}.
+      Check this only if you do not have CloudTrail enabled at the organization level. 
+      Creating an account-level CloudTrail will incur additional AWS costs. Most organizations 
+      already have CloudTrail configured centrally.
     
 Conditions:
-  CreateCloudTrail: !Not [!Equals [!Ref CloudTrailBucketName, '']]
+  CreateCloudTrail: !Equals [!Ref CreateAccountLevelCloudTrail, 'true']
 
 Resources:
   # IAM User with Read-Only Access for Data Crawl
   IAMUser:
     Type: AWS::IAM::User
     Properties:
-      UserName: !Sub '${ResourcePrefix}-crawl-user'
+      UserName: 'kscope-crawl-user'
       Path: "/"
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/ReadOnlyAccess'
@@ -36,7 +35,7 @@ Resources:
   SQSQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: !Sub '${ResourcePrefix}-trail-queue'
+      QueueName: 'kscope-trail-queue'
       MessageRetentionPeriod: 345600  # 4 days
       VisibilityTimeout: 30
       DelaySeconds: 0
@@ -78,7 +77,7 @@ Resources:
   EventBridgeRule:
     Type: AWS::Events::Rule
     Properties:
-      Name: !Sub '${ResourcePrefix}-event-rule'
+      Name: 'kscope-event-rule'
       Description: 'Filters events from CloudTrail to an SQS Queue'
       EventPattern: '{"detail-type":["AWS API Call via CloudTrail"]}'
       State: ENABLED
@@ -86,13 +85,13 @@ Resources:
         - Id: SQSTarget
           Arn: !GetAtt SQSQueue.Arn
 
-  # Conditional Resources - Created only when CloudTrailBucketName is not empty
+  # Conditional Resources - Created only when CreateAccountLevelCloudTrail is true
   S3Bucket:
     Type: AWS::S3::Bucket
     Condition: CreateCloudTrail
     DeletionPolicy: Delete
     Properties:
-      BucketName: !Sub '${ResourcePrefix}-${CloudTrailBucketName}'
+      BucketName: !Sub 'kscope-trail-bucket-${AWS::AccountId}'
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -129,7 +128,7 @@ Resources:
     DependsOn:
       - S3BucketPolicy
     Properties:
-      TrailName: !Sub '${ResourcePrefix}-trail'
+      TrailName: 'kscope-trail'
       S3BucketName: !Ref S3Bucket
       IncludeGlobalServiceEvents: true
       IsMultiRegionTrail: true
@@ -165,25 +164,25 @@ Resources:
   AccessKeySecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub '/${ResourcePrefix}/crawler/access-key'
+      Name: '/kscope/crawler/access-key'
       Description: 'Access key for Kaleidoscope crawler'
       SecretString: !Ref IAMAccessKey
 
   SecretKeySecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub '/${ResourcePrefix}/crawler/secret-key'
+      Name: '/kscope/crawler/secret-key'
       Description: 'Secret key for Kaleidoscope crawler'
       SecretString: !GetAtt IAMAccessKey.SecretAccessKey
 
 Outputs:
   AccessKeySecretName:
     Description: "Secrets Manager secret containing the access key for Kaleidoscope data crawl"
-    Value: !Sub '/${ResourcePrefix}/crawler/access-key'
+    Value: '/kscope/crawler/access-key'
   
   SecretKeySecretName:
     Description: "Secrets Manager secret containing the secret key for Kaleidoscope data crawl"
-    Value: !Sub '/${ResourcePrefix}/crawler/secret-key'
+    Value: '/kscope/crawler/secret-key'
   
   SQSURL:
     Description: SQS URL to be used for Kaleidoscope event crawl
