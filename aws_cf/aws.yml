@@ -9,7 +9,7 @@ Parameters:
       - 'true'
       - 'false'
     Description: >
-      Check this only if you do not have CloudTrail enabled at the organization level. 
+      Choose 'true' only if you do not have CloudTrail enabled at the organization level. 
       Creating an account-level CloudTrail will incur additional AWS costs. Most organizations 
       already have CloudTrail configured centrally.
     
