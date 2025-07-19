@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CloudFormation template to create resources for Kaleidoscope AWS Blueprint'
+Description: 'CloudFormation template to create resources for Kaleidoscope AWS Blueprint - Deploy in each region separately'
 
 Parameters:
   CreateAccountLevelCloudTrail:
@@ -12,30 +12,68 @@ Parameters:
       Choose 'true' only if you do not have CloudTrail enabled at the organization level. 
       Creating an account-level CloudTrail will incur additional AWS costs. Most organizations 
       already have CloudTrail configured centrally.
+  
+  CentralRegion:
+    Type: String
+    Default: 'us-east-2'
+    Description: >
+      The AWS region where the central SQS queue and secrets will be created.
+      EventBridge rules in all regions will forward events to this central region.
+
+  ResourcePrefix:
+    Type: String
+    Default: 'kscope'
+    Description: 'Prefix for all resource names'
     
 Conditions:
   CreateCloudTrail: !Equals [!Ref CreateAccountLevelCloudTrail, 'true']
+  IsCentralRegion: !Equals [!Ref 'AWS::Region', !Ref CentralRegion]
 
 Resources:
-  # IAM User with Read-Only Access for Data Crawl
+  # IAM User with Read-Only Access for Data Crawl (only in central region)
   IAMUser:
     Type: AWS::IAM::User
+    Condition: IsCentralRegion
     Properties:
-      UserName: 'kscope-crawl-user'
+      UserName: !Sub '${ResourcePrefix}-crawl-user'
       Path: "/"
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/ReadOnlyAccess'
 
   IAMAccessKey:
     Type: AWS::IAM::AccessKey
+    Condition: IsCentralRegion
     Properties:
       UserName: !Ref IAMUser
 
-  # SQS Queue for Event Collection
+  # Central Event Bus (only in central region)
+  CentralEventBus:
+    Type: AWS::Events::EventBus
+    Condition: IsCentralRegion
+    Properties:
+      Name: !Sub '${ResourcePrefix}-central-event-bus'
+      Description: 'Central event bus for collecting CloudTrail events from all regions'
+
+  # Central Event Bus Policy (only in central region)
+  CentralEventBusPolicy:
+    Type: AWS::Events::EventBusPolicy
+    Condition: IsCentralRegion
+    Properties:
+      EventBusName: !Ref CentralEventBus
+      StatementId: !Sub '${ResourcePrefix}-AllowCrossRegionEvents'
+      Statement:
+        Effect: Allow
+        Principal:
+          AWS: !Sub '${AWS::AccountId}'
+        Action: 'events:PutEvents'
+        Resource: !GetAtt CentralEventBus.Arn
+
+  # SQS Queue for Event Collection (only in central region)
   SQSQueue:
     Type: AWS::SQS::Queue
+    Condition: IsCentralRegion
     Properties:
-      QueueName: 'kscope-trail-queue'
+      QueueName: !Sub '${ResourcePrefix}-trail-queue'
       MessageRetentionPeriod: 345600  # 4 days
       VisibilityTimeout: 30
       DelaySeconds: 0
@@ -45,6 +83,7 @@ Resources:
 
   SQSQueuePolicy:
     Type: AWS::SQS::QueuePolicy
+    Condition: IsCentralRegion
     Properties:
       Queues:
         - !Ref SQSQueue
@@ -63,7 +102,7 @@ Resources:
               AWS: !GetAtt IAMUser.Arn
             Action: 'SQS:*'
             Resource: !GetAtt SQSQueue.Arn
-          - Sid: AllowEventBridgeRule
+          - Sid: AllowCentralEventBridgeRule
             Effect: Allow
             Principal:
               Service: events.amazonaws.com
@@ -71,27 +110,63 @@ Resources:
             Resource: !GetAtt SQSQueue.Arn
             Condition:
               ArnEquals:
-                'aws:SourceArn': !GetAtt EventBridgeRule.Arn
+                'aws:SourceArn': !GetAtt CentralEventBridgeRule.Arn
 
-  # EventBridge Rule to Capture CloudTrail Events
-  EventBridgeRule:
+  # Central EventBridge Rule (only in central region) - processes events from central bus
+  CentralEventBridgeRule:
     Type: AWS::Events::Rule
+    Condition: IsCentralRegion
     Properties:
-      Name: 'kscope-event-rule'
-      Description: 'Filters events from CloudTrail to an SQS Queue'
+      Name: !Sub '${ResourcePrefix}-central-event-rule'
+      Description: 'Processes CloudTrail events from central event bus and forwards to SQS'
+      EventBusName: !Ref CentralEventBus
       EventPattern: '{"detail-type":["AWS API Call via CloudTrail"]}'
       State: ENABLED
       Targets:
         - Id: SQSTarget
           Arn: !GetAtt SQSQueue.Arn
 
-  # Conditional Resources - Created only when CreateAccountLevelCloudTrail is true
+  # Regional EventBridge Rule - forwards events to central event bus
+  RegionalEventBridgeRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ResourcePrefix}-regional-event-rule'
+      Description: 'Captures CloudTrail events and forwards to central event bus'
+      EventPattern: '{"detail-type":["AWS API Call via CloudTrail"]}'
+      State: ENABLED
+      Targets:
+        - Id: CentralEventBusTarget
+          Arn: !Sub 'arn:aws:events:${CentralRegion}:${AWS::AccountId}:event-bus/${ResourcePrefix}-central-event-bus'
+          RoleArn: !GetAtt EventBridgeRole.Arn
+
+  # IAM Role for EventBridge cross-region access
+  EventBridgeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ResourcePrefix}-eventbridge-role-${AWS::Region}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'EventBridgeCrossRegionPolicy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 'events:PutEvents'
+                Resource: !Sub 'arn:aws:events:${CentralRegion}:${AWS::AccountId}:event-bus/${ResourcePrefix}-central-event-bus'
+
+  # Single S3 Bucket for CloudTrail (only in central region)
   S3Bucket:
     Type: AWS::S3::Bucket
     Condition: CreateCloudTrail
     DeletionPolicy: Delete
     Properties:
-      BucketName: !Sub 'kscope-trail-bucket-${AWS::AccountId}'
+      BucketName: !Sub '${ResourcePrefix}-trail-bucket-${AWS::AccountId}'
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -122,13 +197,14 @@ Resources:
               StringEquals:
                 's3:x-amz-acl': 'bucket-owner-full-control'
 
+  # Single Multi-Region CloudTrail (only in central region)
   CloudTrail:
     Type: AWS::CloudTrail::Trail
     Condition: CreateCloudTrail
     DependsOn:
       - S3BucketPolicy
     Properties:
-      TrailName: 'kscope-trail'
+      TrailName: !Sub '${ResourcePrefix}-trail'
       S3BucketName: !Ref S3Bucket
       IncludeGlobalServiceEvents: true
       IsMultiRegionTrail: true
@@ -160,30 +236,35 @@ Resources:
               Values:
                 - 'arn:aws:dynamodb'
 
-  # Store credentials securely in Secrets Manager
+  # Store credentials securely in Secrets Manager (only in central region)
   AccessKeySecret:
     Type: AWS::SecretsManager::Secret
+    Condition: IsCentralRegion
     Properties:
-      Name: '/kscope/crawler/access-key'
+      Name: !Sub '/${ResourcePrefix}/crawler/access-key'
       Description: 'Access key for Kaleidoscope crawler'
       SecretString: !Ref IAMAccessKey
 
   SecretKeySecret:
     Type: AWS::SecretsManager::Secret
+    Condition: IsCentralRegion
     Properties:
-      Name: '/kscope/crawler/secret-key'
+      Name: !Sub '/${ResourcePrefix}/crawler/secret-key'
       Description: 'Secret key for Kaleidoscope crawler'
       SecretString: !GetAtt IAMAccessKey.SecretAccessKey
 
 Outputs:
   AccessKeySecretName:
+    Condition: IsCentralRegion
     Description: "Secrets Manager secret containing the access key for Kaleidoscope data crawl"
-    Value: '/kscope/crawler/access-key'
+    Value: !Sub '/${ResourcePrefix}/crawler/access-key'
   
   SecretKeySecretName:
+    Condition: IsCentralRegion
     Description: "Secrets Manager secret containing the secret key for Kaleidoscope data crawl"
-    Value: '/kscope/crawler/secret-key'
+    Value: !Sub '/${ResourcePrefix}/crawler/secret-key'
   
   SQSURL:
+    Condition: IsCentralRegion
     Description: SQS URL to be used for Kaleidoscope event crawl
     Value: !Ref SQSQueue
