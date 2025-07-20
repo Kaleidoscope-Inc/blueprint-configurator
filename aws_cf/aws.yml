@@ -135,6 +135,12 @@ Resources:
       EventPattern:
         detail-type: ['AWS API Call via CloudTrail']
         detail:
+          eventSource:
+            - exists: false
+            - anything-but:
+              - 'sts.amazonaws.com'
+              - 'kms.amazonaws.com'
+              - 'logs.amazonaws.com'
           userIdentity:
             userName:
               - exists: false
