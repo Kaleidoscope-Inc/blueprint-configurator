@@ -137,10 +137,13 @@ Resources:
         detail:
           userIdentity:
             userName:
+              - exists: false
               - anything-but: !Sub '${ResourcePrefix}-crawl-user'
-            arn:
+          requestParameters:
+            roleArn:
+              - exists: false
               - anything-but:
-                  prefix: !Sub 'arn:aws:sts::${AWS::AccountId}:assumed-role/${ResourcePrefix}-eventbridge-role-'
+                  prefix: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${ResourcePrefix}-eventbridge-role-'
       State: ENABLED
       Targets:
         - Id: CentralEventBusTarget
