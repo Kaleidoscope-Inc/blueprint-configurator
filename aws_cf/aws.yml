@@ -132,7 +132,15 @@ Resources:
     Properties:
       Name: !Sub '${ResourcePrefix}-regional-event-rule'
       Description: 'Captures CloudTrail events and forwards to central event bus'
-      EventPattern: '{"detail-type":["AWS API Call via CloudTrail"]}'
+      EventPattern:
+        detail-type: ['AWS API Call via CloudTrail']
+        detail:
+          userIdentity:
+            userName:
+              - anything-but: !Sub '${ResourcePrefix}-crawl-user'
+            arn:
+              - anything-but:
+                  prefix: !Sub 'arn:aws:sts::${AWS::AccountId}:assumed-role/${ResourcePrefix}-eventbridge-role-'
       State: ENABLED
       Targets:
         - Id: CentralEventBusTarget
