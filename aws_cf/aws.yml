@@ -141,6 +141,7 @@ Resources:
               - 'sts.amazonaws.com'
               - 'kms.amazonaws.com'
               - 'logs.amazonaws.com'
+              - 'cloudtrail.amazonaws.com'
           userIdentity:
             userName:
               - exists: false
