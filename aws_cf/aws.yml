@@ -25,26 +25,36 @@ Parameters:
     Default: 'kscope'
     Description: 'Prefix for all resource names'
     
+  TrustedAccountId:
+    Type: String
+    Description: "Kscope AWS Account ID that can assume the crawl role"
+  ExternalId:
+    Type: String
+    Description: "External ID required to assume the crawl role (choose a random string)"
+
 Conditions:
   CreateCloudTrail: !Equals [!Ref CreateAccountLevelCloudTrail, 'true']
   IsCentralRegion: !Equals [!Ref 'AWS::Region', !Ref CentralRegion]
 
 Resources:
-  # IAM User with Read-Only Access for Data Crawl (only in central region)
-  IAMUser:
-    Type: AWS::IAM::User
+  # IAM Role for cross-account access (only in central region)
+  IAMCrawlRole:
+    Type: AWS::IAM::Role
     Condition: IsCentralRegion
     Properties:
-      UserName: !Sub '${ResourcePrefix}-crawl-user'
-      Path: "/"
+      RoleName: !Sub '${ResourcePrefix}-crawl-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${TrustedAccountId}:root'
+            Action: 'sts:AssumeRole'
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref ExternalId
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/ReadOnlyAccess'
-
-  IAMAccessKey:
-    Type: AWS::IAM::AccessKey
-    Condition: IsCentralRegion
-    Properties:
-      UserName: !Ref IAMUser
 
   # Central Event Bus (only in central region)
   CentralEventBus:
@@ -96,12 +106,6 @@ Resources:
               AWS: !Sub '${AWS::AccountId}'
             Action: 'SQS:*'
             Resource: !GetAtt SQSQueue.Arn
-          - Sid: AllowCrawlUser
-            Effect: Allow
-            Principal:
-              AWS: !GetAtt IAMUser.Arn
-            Action: 'SQS:*'
-            Resource: !GetAtt SQSQueue.Arn
           - Sid: AllowCentralEventBridgeRule
             Effect: Allow
             Principal:
@@ -145,7 +149,7 @@ Resources:
           userIdentity:
             userName:
               - exists: false
-              - anything-but: !Sub '${ResourcePrefix}-crawl-user'
+              - anything-but: !Sub '${ResourcePrefix}-crawl-role'
           requestParameters:
             roleArn:
               - exists: false
@@ -254,35 +258,13 @@ Resources:
               Values:
                 - 'arn:aws:dynamodb'
 
-  # Store credentials securely in Secrets Manager (only in central region)
-  AccessKeySecret:
-    Type: AWS::SecretsManager::Secret
-    Condition: IsCentralRegion
-    Properties:
-      Name: !Sub '/${ResourcePrefix}/crawler/access-key'
-      Description: 'Access key for Kaleidoscope crawler'
-      SecretString: !Ref IAMAccessKey
-
-  SecretKeySecret:
-    Type: AWS::SecretsManager::Secret
-    Condition: IsCentralRegion
-    Properties:
-      Name: !Sub '/${ResourcePrefix}/crawler/secret-key'
-      Description: 'Secret key for Kaleidoscope crawler'
-      SecretString: !GetAtt IAMAccessKey.SecretAccessKey
-
 Outputs:
-  AccessKeySecretName:
-    Condition: IsCentralRegion
-    Description: "Secrets Manager secret containing the access key for Kaleidoscope data crawl"
-    Value: !Sub '/${ResourcePrefix}/crawler/access-key'
-  
-  SecretKeySecretName:
-    Condition: IsCentralRegion
-    Description: "Secrets Manager secret containing the secret key for Kaleidoscope data crawl"
-    Value: !Sub '/${ResourcePrefix}/crawler/secret-key'
-  
   SQSURL:
     Condition: IsCentralRegion
     Description: SQS URL to be used for Kaleidoscope event crawl
     Value: !Ref SQSQueue
+
+  CrawlRoleArn:
+    Condition: IsCentralRegion
+    Description: ARN of the IAM role to be assumed by the trusted account
+    Value: !GetAtt IAMCrawlRole.Arn
