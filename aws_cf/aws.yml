@@ -28,15 +28,30 @@ Parameters:
   TrustedAccountId:
     Type: String
     Description: "Kscope AWS Account ID that can assume the crawl role"
-  ExternalId:
-    Type: String
-    Description: "External ID required to assume the crawl role (choose a random string)"
 
 Conditions:
   CreateCloudTrail: !Equals [!Ref CreateAccountLevelCloudTrail, 'true']
   IsCentralRegion: !Equals [!Ref 'AWS::Region', !Ref CentralRegion]
 
 Resources:
+  # Generate External ID and store in Secrets Manager (only in central region)
+  ExternalIdSecret:
+    Type: AWS::SecretsManager::Secret
+    Condition: IsCentralRegion
+    Properties:
+      Name: !Sub '/${ResourcePrefix}/crawler/external-id'
+      Description: 'External ID for cross-account role assumption'
+      GenerateSecretString:
+        SecretStringTemplate: '{}'
+        GenerateStringKey: 'externalId'
+        PasswordLength: 32
+        IncludeSpace: false
+        ExcludePunctuation: true
+        ExcludeNumbers: false
+        ExcludeLowercase: false
+        ExcludeUppercase: false
+        RequireEachIncludedType: false
+
   # IAM Role for cross-account access (only in central region)
   IAMCrawlRole:
     Type: AWS::IAM::Role
@@ -52,7 +67,7 @@ Resources:
             Action: 'sts:AssumeRole'
             Condition:
               StringEquals:
-                sts:ExternalId: !Ref ExternalId
+                sts:ExternalId: !Sub '{{resolve:secretsmanager:${ExternalIdSecret}:SecretString:externalId}}'
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/ReadOnlyAccess'
 
@@ -268,3 +283,8 @@ Outputs:
     Condition: IsCentralRegion
     Description: ARN of the IAM role to be assumed by the trusted account
     Value: !GetAtt IAMCrawlRole.Arn
+  
+  ExternalIdSecretName:
+    Condition: IsCentralRegion
+    Description: Secrets Manager secret name containing the external ID
+    Value: !Ref ExternalIdSecret
