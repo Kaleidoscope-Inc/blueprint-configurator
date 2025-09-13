@@ -82,6 +82,17 @@ Resources:
                   - 'sqs:GetQueueAttributes'
                   - 'sqs:GetQueueUrl'
                 Resource: !GetAtt SQSQueue.Arn
+        - PolicyName: !Sub '${ResourcePrefix}-bedrock-access'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'bedrock:GetImportedModel'
+                  - 'bedrock:ListImportedModels'
+                  - 'bedrock:ListCustomModelDeployments'
+                  - 'bedrock:GetCustomModelDeployment'
+                Resource: '*'
 
   # Central Event Bus (only in central region)
   CentralEventBus:
