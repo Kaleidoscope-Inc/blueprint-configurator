@@ -34,5 +34,12 @@ AWS blueprint can be configured using either CloudFormation or Terraform:
 - **Terraform**: We maintain Terraform scripts for AWS as an alternative option.
   - [Read more](./aws/README.md)
 
+### AWS AI DAST Module
+
+For AWS AI DAST (AI-powered Dynamic Application Security Testing) capabilities:
+
+- **CloudFormation**: Simplified template to create an IAM role with Bedrock model invocation permissions for AI DAST operations.
+  - [Read more](./aws_dast_cf/README.md)
+
 For more information and detailed usage instructions, refer to the specific module's documentation in their respective directories.
 

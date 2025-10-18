@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template to create AI DAST role for Kaleidoscope with Bedrock invoke model permissions'
+
+Parameters:
+  ResourcePrefix:
+    Type: String
+    Default: 'kscope'
+    Description: 'Prefix for all resource names'
+    
+  TrustedAccountId:
+    Type: String
+    Description: "Kaleidoscope AWS Account ID that can assume the AI DAST role"
+
+Resources:
+  # Generate External ID and store in Secrets Manager
+  ExternalIdSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '/${ResourcePrefix}/ai-dast/external-id'
+      Description: 'External ID for AI DAST cross-account role assumption'
+      GenerateSecretString:
+        SecretStringTemplate: '{}'
+        GenerateStringKey: 'externalId'
+        PasswordLength: 32
+        IncludeSpace: false
+        ExcludePunctuation: true
+        ExcludeNumbers: false
+        ExcludeLowercase: false
+        ExcludeUppercase: false
+        RequireEachIncludedType: false
+
+  # IAM Role for AI DAST cross-account access
+  AIDASTRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ResourcePrefix}-ai-dast-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${TrustedAccountId}:root'
+            Action: 'sts:AssumeRole'
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Sub '{{resolve:secretsmanager:${ExternalIdSecret}:SecretString:externalId}}'
+      Policies:
+        - PolicyName: !Sub '${ResourcePrefix}-bedrock-invoke-access'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'bedrock:InvokeModel'
+                  - 'bedrock:InvokeModelWithResponseStream'
+                Resource: '*'
+
+Outputs:
+  AIDASTRoleArn:
+    Description: 'ARN of the AI DAST IAM role to be assumed by the trusted account'
+    Value: !GetAtt AIDASTRole.Arn
+  
+  ExternalIdSecretName:
+    Description: 'Secrets Manager secret name containing the external ID'
+    Value: !Ref ExternalIdSecret
