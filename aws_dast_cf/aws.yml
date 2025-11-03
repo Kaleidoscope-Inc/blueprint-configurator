@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CloudFormation template to create AI DAST role for Kaleidoscope with Bedrock invoke model permissions'
+Description: 'CloudFormation template to create AI DAST role for Kaleidoscope with Bedrock model and agent permissions'
 
 Parameters:
   ResourcePrefix:
@@ -53,6 +53,7 @@ Resources:
                 Action:
                   - 'bedrock:InvokeModel'
                   - 'bedrock:InvokeModelWithResponseStream'
+                  - 'bedrock-agent:InvokeAgent'
                 Resource: '*'
 
 Outputs:
