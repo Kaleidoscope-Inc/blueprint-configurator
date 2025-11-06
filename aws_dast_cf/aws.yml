@@ -53,7 +53,7 @@ Resources:
                 Action:
                   - 'bedrock:InvokeModel'
                   - 'bedrock:InvokeModelWithResponseStream'
-                  - 'bedrock-agent:InvokeAgent'
+                  - 'bedrock:InvokeAgent'
                 Resource: '*'
 
 Outputs:
