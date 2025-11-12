@@ -11,6 +11,16 @@ resource "aws_cloudwatch_event_rule" "kscope_crawler_rule" {
 }
 
 resource "aws_cloudwatch_event_target" "kscope_event_target" {
-  arn  = aws_sqs_queue.sqs-queue.arn
+  arn  = var.event_sqs_ingress_queue_arn
   rule = local.event_rule_name
+  input_transformer {
+    input_paths = {
+      evt = "$"
+    }
+    input_template = {
+      "CrawlConfigID": var.crawl_config_id,
+      "Version": var.event_version,
+      "Payload": <evt>
+    }
+  }
 }
