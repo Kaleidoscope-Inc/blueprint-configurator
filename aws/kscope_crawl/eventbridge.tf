@@ -15,7 +15,9 @@ resource "aws_cloudwatch_event_target" "kscope_event_target" {
   rule = local.event_rule_name
   input_transformer {
     input_paths = {
-      evt = "$"
+      evt = {
+        "evt": "$"
+      }
     }
     input_template = {
       "CrawlConfigID": var.crawl_config_id,

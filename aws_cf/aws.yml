@@ -25,9 +25,13 @@ Parameters:
     Default: 'kscope'
     Description: 'Prefix for all resource names'
     
-  TrustedAccountId:
+  IngressQueueArn:
     Type: String
-    Description: "Kscope AWS Account ID that can assume the crawl role"
+    Description: "ARN of the SQS queue to which events will be forwarded from the central region"
+
+  CrawlConfigId:
+    Type: String
+    Description: "ID of the crawl configuration to be used by the crawl role"
 
 Conditions:
   CreateCloudTrail: !Equals [!Ref CreateAccountLevelCloudTrail, 'true']
@@ -52,48 +56,6 @@ Resources:
         ExcludeUppercase: false
         RequireEachIncludedType: false
 
-  # IAM Role for cross-account access (only in central region)
-  IAMCrawlRole:
-    Type: AWS::IAM::Role
-    Condition: IsCentralRegion
-    Properties:
-      RoleName: !Sub '${ResourcePrefix}-crawl-role'
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS: !Sub 'arn:aws:iam::${TrustedAccountId}:root'
-            Action: 'sts:AssumeRole'
-            Condition:
-              StringEquals:
-                sts:ExternalId: !Sub '{{resolve:secretsmanager:${ExternalIdSecret}:SecretString:externalId}}'
-      ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/ReadOnlyAccess'
-      Policies:
-        - PolicyName: !Sub '${ResourcePrefix}-sqs-queue-access'
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - 'sqs:ReceiveMessage'
-                  - 'sqs:DeleteMessage'
-                  - 'sqs:GetQueueAttributes'
-                  - 'sqs:GetQueueUrl'
-                Resource: !GetAtt SQSQueue.Arn
-        - PolicyName: !Sub '${ResourcePrefix}-bedrock-access'
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - 'bedrock:GetImportedModel'
-                  - 'bedrock:ListImportedModels'
-                  - 'bedrock:ListCustomModelDeployments'
-                  - 'bedrock:GetCustomModelDeployment'
-                Resource: '*'
-
   # Central Event Bus (only in central region)
   CentralEventBus:
     Type: AWS::Events::EventBus
@@ -116,44 +78,6 @@ Resources:
         Action: 'events:PutEvents'
         Resource: !GetAtt CentralEventBus.Arn
 
-  # SQS Queue for Event Collection (only in central region)
-  SQSQueue:
-    Type: AWS::SQS::Queue
-    Condition: IsCentralRegion
-    Properties:
-      QueueName: !Sub '${ResourcePrefix}-trail-queue'
-      MessageRetentionPeriod: 345600  # 4 days
-      VisibilityTimeout: 30
-      DelaySeconds: 0
-      MaximumMessageSize: 262144
-      ReceiveMessageWaitTimeSeconds: 0
-      SqsManagedSseEnabled: true
-
-  SQSQueuePolicy:
-    Type: AWS::SQS::QueuePolicy
-    Condition: IsCentralRegion
-    Properties:
-      Queues:
-        - !Ref SQSQueue
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Sid: OwnerStatement
-            Effect: Allow
-            Principal:
-              AWS: !Sub '${AWS::AccountId}'
-            Action: 'SQS:*'
-            Resource: !GetAtt SQSQueue.Arn
-          - Sid: AllowCentralEventBridgeRule
-            Effect: Allow
-            Principal:
-              Service: events.amazonaws.com
-            Action: 'SQS:SendMessage'
-            Resource: !GetAtt SQSQueue.Arn
-            Condition:
-              ArnEquals:
-                'aws:SourceArn': !GetAtt CentralEventBridgeRule.Arn
-
   # Central EventBridge Rule (only in central region) - processes events from central bus
   CentralEventBridgeRule:
     Type: AWS::Events::Rule
@@ -166,7 +90,17 @@ Resources:
       State: ENABLED
       Targets:
         - Id: SQSTarget
-          Arn: !GetAtt SQSQueue.Arn
+          Arn: !Ref IngressQueueArn
+          RoleArn: !GetAtt EventBridgeToSqsRole.Arn
+          InputTransformer:
+            InputPathsMap:
+              evt: "$"
+            InputTemplate: !Sub |
+              {
+                "CrawlConfigID": "${CrawlConfigId}",
+                "Version": "1.0",
+                "Payload": <evt>
+              }
 
   # Regional EventBridge Rule - forwards events to central event bus
   RegionalEventBridgeRule:
@@ -219,6 +153,27 @@ Resources:
               - Effect: Allow
                 Action: 'events:PutEvents'
                 Resource: !Sub 'arn:aws:events:${CentralRegion}:${AWS::AccountId}:event-bus/${ResourcePrefix}-central-event-bus'
+
+  EventBridgeToSqsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ResourcePrefix}-eventbridge-to-sqs-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SendToEventCrawlQueue
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource: !Ref IngressQueueArn
 
   # Single S3 Bucket for CloudTrail (only in central region)
   S3Bucket:
@@ -297,17 +252,12 @@ Resources:
                 - 'arn:aws:dynamodb'
 
 Outputs:
-  SQSURL:
-    Condition: IsCentralRegion
-    Description: SQS URL to be used for Kaleidoscope event crawl
-    Value: !Ref SQSQueue
-
-  CrawlRoleArn:
-    Condition: IsCentralRegion
-    Description: ARN of the IAM role to be assumed by the trusted account
-    Value: !GetAtt IAMCrawlRole.Arn
-  
   ExternalIdSecretName:
     Condition: IsCentralRegion
     Description: Secrets Manager secret name containing the external ID
     Value: !Ref ExternalIdSecret
+
+  SourceEventBridgeRoleArn:
+    Condition: IsCentralRegion
+    Description: ARN of the EventBridge role to be used to allow sending events from central region to the ingress sqs queue
+    Value: !GetAtt EventBridgeToSqsRole.Arn
