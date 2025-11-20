@@ -1,0 +1,161 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for Kaleidoscope Kubernetes Crawler IAM Role'
+
+Parameters:
+  ExternalId:
+    Type: String
+    Description: External ID for assuming the role (provided by Kaleidoscope)
+    NoEcho: true
+  
+  KaleidoscopeAccountId:
+    Type: String
+    Description: AWS Account ID of the Kaleidoscope platform
+    Default: '123456789012'
+  
+  EKSClusterNames:
+    Type: CommaDelimitedList
+    Description: Comma-separated list of EKS cluster names to grant access to (e.g., my-cluster-1,my-cluster-2)
+    Default: '*'
+
+Resources:
+  KubernetsCrawlerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'kaleidoscope-kubernetes-crawler-role-${AWS::Region}'
+      Description: IAM role for Kaleidoscope Kubernetes Crawler to access EKS clusters
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${KaleidoscopeAccountId}:root'
+            Action: 'sts:AssumeRole'
+            Condition:
+              StringEquals:
+                'sts:ExternalId': !Ref ExternalId
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'sts:AssumeRole'
+            Condition:
+              ArnEquals:
+                'aws:PrincipalArn': !Sub 'arn:aws:iam::${AWS::AccountId}:role/kaleidoscope-kubernetes-crawler-role-${AWS::Region}'
+      ManagedPolicyArns:
+        - !Ref KubernetsCrawlerPolicy
+      Tags:
+        - Key: ManagedBy
+          Value: Kaleidoscope
+        - Key: Purpose
+          Value: KubernetesCrawler
+
+  KubernetsCrawlerPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub 'kaleidoscope-kubernetes-crawler-policy-${AWS::Region}'
+      Description: IAM policy for Kaleidoscope Kubernetes Crawler
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          # EKS Cluster Access
+          - Sid: EKSClusterAccess
+            Effect: Allow
+            Action:
+              - 'eks:DescribeCluster'
+              - 'eks:ListClusters'
+              - 'eks:DescribeNodegroup'
+              - 'eks:ListNodegroups'
+              - 'eks:DescribeAddon'
+              - 'eks:ListAddons'
+              - 'eks:DescribeFargateProfile'
+              - 'eks:ListFargateProfiles'
+              - 'eks:ListUpdates'
+              - 'eks:DescribeUpdate'
+            Resource: !If
+              - UseAllClusters
+              - '*'
+              - !Split
+                - ','
+                - !Sub 
+                  - 'arn:aws:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}'
+                  - ClusterName: !Join [',arn:aws:eks:${AWS::Region}:${AWS::AccountId}:cluster/', !Ref EKSClusterNames]
+          
+          # EC2 permissions for EKS nodes
+          - Sid: EC2ReadAccess
+            Effect: Allow
+            Action:
+              - 'ec2:DescribeInstances'
+              - 'ec2:DescribeSecurityGroups'
+              - 'ec2:DescribeSubnets'
+              - 'ec2:DescribeVpcs'
+              - 'ec2:DescribeVolumes'
+              - 'ec2:DescribeNetworkInterfaces'
+            Resource: '*'
+          
+          # IAM permissions for role verification
+          - Sid: IAMReadAccess
+            Effect: Allow
+            Action:
+              - 'iam:GetRole'
+              - 'iam:ListAttachedRolePolicies'
+              - 'iam:ListRolePolicies'
+            Resource: '*'
+          
+          # CloudWatch Logs for container insights (optional)
+          - Sid: CloudWatchLogsAccess
+            Effect: Allow
+            Action:
+              - 'logs:DescribeLogGroups'
+              - 'logs:DescribeLogStreams'
+              - 'logs:GetLogEvents'
+              - 'logs:FilterLogEvents'
+            Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/eks/*'
+          
+          # Allow the role to assume itself for credential refresh
+          - Sid: AssumeOwnRole
+            Effect: Allow
+            Action:
+              - 'sts:AssumeRole'
+            Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:role/kaleidoscope-kubernetes-crawler-role-${AWS::Region}'
+
+Conditions:
+  UseAllClusters: !Equals
+    - !Select [0, !Ref EKSClusterNames]
+    - '*'
+
+Outputs:
+  RoleArn:
+    Description: ARN of the IAM role for Kaleidoscope Kubernetes Crawler
+    Value: !GetAtt KubernetsCrawlerRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-RoleArn'
+  
+  RoleName:
+    Description: Name of the IAM role
+    Value: !Ref KubernetsCrawlerRole
+    Export:
+      Name: !Sub '${AWS::StackName}-RoleName'
+  
+  PolicyArn:
+    Description: ARN of the IAM policy
+    Value: !Ref KubernetsCrawlerPolicy
+    Export:
+      Name: !Sub '${AWS::StackName}-PolicyArn'
+  
+  ConfigurationInstructions:
+    Description: Instructions for configuring the Kubernetes crawler
+    Value: !Sub |
+      Use the following values to configure the Kaleidoscope Kubernetes crawler:
+      - assumeRoleArn: ${KubernetsCrawlerRole.Arn}
+      - externalID: [Use the same External ID provided during stack creation]
+      - clusterName: [Specify the EKS cluster name to crawl]
+      
+      Note: You will also need to update the EKS cluster's aws-auth ConfigMap to grant
+      the IAM role access to the Kubernetes API. Run the following command:
+      
+      kubectl edit configmap aws-auth -n kube-system
+      
+      Add the following entry under mapRoles:
+      - rolearn: ${KubernetsCrawlerRole.Arn}
+        username: kaleidoscope-crawler
+        groups:
+          - system:masters
