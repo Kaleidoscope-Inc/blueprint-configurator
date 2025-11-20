@@ -7,6 +7,7 @@ on:
     paths:
       - 'aws_cf/aws.yml'
       - 'aws_dast_cf/aws.yml'
+      - 'aws_eks_cf/aws.yml'
 
 jobs:
   publish-to-s3:
@@ -62,6 +63,18 @@ jobs:
             s3://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}/aws-ai-dast/aws-ai-dast-latest.yml \
             --content-type "text/yaml"
 
+      - name: Upload AWS EKS CloudFormation template with version
+        run: |
+          # Upload versioned template
+          aws s3 cp aws_eks_cf/aws.yml \
+            s3://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}/aws-eks/aws-eks-${{ steps.version.outputs.version }}-${{ steps.version.outputs.commit }}.yml \
+            --content-type "text/yaml"
+          
+          # Upload as latest
+          aws s3 cp aws_eks_cf/aws.yml \
+            s3://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}/aws-eks/aws-eks-latest.yml \
+            --content-type "text/yaml"
+
       - name: Output template URLs
         run: |
           echo "Templates published successfully!"
@@ -73,3 +86,7 @@ jobs:
           echo "=== AWS AI DAST Templates ==="
           echo "Latest template URL: https://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}.s3.amazonaws.com/aws-ai-dast/aws-ai-dast-latest.yml"
           echo "Versioned template URL: https://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}.s3.amazonaws.com/aws-ai-dast/aws-ai-dast-${{ steps.version.outputs.version }}-${{ steps.version.outputs.commit }}.yml"
+          echo ""
+          echo "=== AWS EKS Templates ==="
+          echo "Latest template URL: https://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}.s3.amazonaws.com/aws-eks/aws-eks-latest.yml"
+          echo "Versioned template URL: https://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}.s3.amazonaws.com/aws-eks/aws-eks-${{ steps.version.outputs.version }}-${{ steps.version.outputs.commit }}.yml"
