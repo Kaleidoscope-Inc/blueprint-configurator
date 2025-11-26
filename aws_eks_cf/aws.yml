@@ -2,6 +2,11 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: 'CloudFormation template for Kaleidoscope Kubernetes Crawler IAM Role'
 
 Parameters:
+  ResourcePrefix:
+    Type: String
+    Default: 'kscope'
+    Description: 'Prefix for all resource names'
+  
   ExternalId:
     Type: String
     Description: External ID for assuming the role (provided by Kaleidoscope)
@@ -21,7 +26,7 @@ Resources:
   KubernetsCrawlerRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub 'kaleidoscope-kubernetes-crawler-role-${AWS::Region}'
+      RoleName: !Sub '${ResourcePrefix}-kubernetes-crawler-role-${AWS::Region}'
       Description: IAM role for Kaleidoscope Kubernetes Crawler to access EKS clusters
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
@@ -39,7 +44,7 @@ Resources:
             Action: 'sts:AssumeRole'
             Condition:
               ArnEquals:
-                'aws:PrincipalArn': !Sub 'arn:aws:iam::${AWS::AccountId}:role/kaleidoscope-kubernetes-crawler-role-${AWS::Region}'
+                'aws:PrincipalArn': !Sub 'arn:aws:iam::${AWS::AccountId}:role/${ResourcePrefix}-kubernetes-crawler-role-${AWS::Region}'
       ManagedPolicyArns:
         - !Ref KubernetsCrawlerPolicy
       Tags:
@@ -51,7 +56,7 @@ Resources:
   KubernetsCrawlerPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: !Sub 'kaleidoscope-kubernetes-crawler-policy-${AWS::Region}'
+      ManagedPolicyName: !Sub '${ResourcePrefix}-kubernetes-crawler-policy-${AWS::Region}'
       Description: IAM policy for Kaleidoscope Kubernetes Crawler
       PolicyDocument:
         Version: '2012-10-17'
@@ -115,7 +120,7 @@ Resources:
             Effect: Allow
             Action:
               - 'sts:AssumeRole'
-            Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:role/kaleidoscope-kubernetes-crawler-role-${AWS::Region}'
+            Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${ResourcePrefix}-kubernetes-crawler-role-${AWS::Region}'
 
 Conditions:
   UseAllClusters: !Equals
