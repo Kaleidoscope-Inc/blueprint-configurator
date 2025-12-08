@@ -26,6 +26,7 @@ Parameters:
     Description: 'Prefix for all resource names'
     
   IngressQueueArn:
+    Condition: IsCentralRegion
     Type: String
     Description: "ARN of the SQS queue to which events will be forwarded from the central region"
 
@@ -156,6 +157,7 @@ Resources:
 
   EventBridgeToSqsRole:
     Type: AWS::IAM::Role
+    Condition: IsCentralRegion
     Properties:
       RoleName: !Sub '${ResourcePrefix}-eventbridge-to-sqs-role'
       AssumeRolePolicyDocument:
