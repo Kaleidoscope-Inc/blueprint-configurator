@@ -24,14 +24,14 @@ Parameters:
     Type: String
     Default: 'kscope'
     Description: 'Prefix for all resource names'
-    
-  IngressQueueArn:
-    Type: String
-    Description: "ARN of the SQS queue to which events will be forwarded from the central region"
 
   CrawlConfigId:
     Type: String
     Description: "ID of the crawl configuration to be used by the crawl role"
+
+  TrustedAccountId:
+    Type: String
+    Description: "Kscope AWS Account ID that can assume the crawl role"
 
 Conditions:
   CreateCloudTrail: !Equals [!Ref CreateAccountLevelCloudTrail, 'true']
@@ -90,7 +90,7 @@ Resources:
       State: ENABLED
       Targets:
         - Id: SQSTarget
-          Arn: !Ref IngressQueueArn
+          Arn: !Sub 'arn:aws:sqs:us-east-2:${TrustedAccountId}:events-queue'
           RoleArn: !GetAtt EventBridgeToSqsRole.Arn
           InputTransformer:
             InputPathsMap:
@@ -174,7 +174,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - sqs:SendMessage
-                Resource: !Ref IngressQueueArn
+                Resource: !Sub 'arn:aws:sqs:us-east-2:${TrustedAccountId}:events-queue'
 
   # Single S3 Bucket for CloudTrail (only in central region)
   S3Bucket:
