@@ -38,6 +38,23 @@ Conditions:
   IsCentralRegion: !Equals [!Ref 'AWS::Region', !Ref CentralRegion]
 
 Resources:
+  IAMCrawlRole:
+    Type: AWS::IAM::Role
+    Condition: IsCentralRegion
+    Properties:
+      RoleName: !Sub '${ResourcePrefix}-crawl-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${TrustedAccountId}:root'
+            Action: 'sts:AssumeRole'
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Sub '{{resolve:secretsmanager:${ExternalIdSecret}:SecretString:externalId}}'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/ReadOnlyAccess'
   # Generate External ID and store in Secrets Manager (only in central region)
   ExternalIdSecret:
     Type: AWS::SecretsManager::Secret
@@ -262,3 +279,8 @@ Outputs:
     Condition: IsCentralRegion
     Description: ARN of the EventBridge role to be used to allow sending events from central region to the ingress sqs queue
     Value: !GetAtt EventBridgeToSqsRole.Arn
+
+  CrawlRoleArn:
+    Condition: IsCentralRegion
+    Description: ARN of the IAM role to be assumed by the trusted account
+    Value: !GetAtt IAMCrawlRole.Arn
