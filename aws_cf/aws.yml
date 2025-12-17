@@ -26,7 +26,6 @@ Parameters:
     Description: 'Prefix for all resource names'
     
   IngressQueueArn:
-    Condition: IsCentralRegion
     Type: String
     Description: "ARN of the SQS queue to which events will be forwarded from the central region"
 
