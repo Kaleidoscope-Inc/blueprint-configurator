@@ -55,6 +55,18 @@ Resources:
                 sts:ExternalId: !Sub '{{resolve:secretsmanager:${ExternalIdSecret}:SecretString:externalId}}'
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/ReadOnlyAccess'
+      Policies:
+        - PolicyName: !Sub '${ResourcePrefix}-bedrock-access'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'bedrock:GetImportedModel'
+                  - 'bedrock:ListImportedModels'
+                  - 'bedrock:ListCustomModelDeployments'
+                  - 'bedrock:GetCustomModelDeployment'
+                Resource: '*'
   # Generate External ID and store in Secrets Manager (only in central region)
   ExternalIdSecret:
     Type: AWS::SecretsManager::Secret
