@@ -24,21 +24,49 @@ Parameters:
     Type: String
     Default: 'kscope'
     Description: 'Prefix for all resource names'
-    
-  IngressQueueArn:
-    Condition: IsCentralRegion
-    Type: String
-    Description: "ARN of the SQS queue to which events will be forwarded from the central region"
 
   CrawlConfigId:
     Type: String
     Description: "ID of the crawl configuration to be used by the crawl role"
+
+  TrustedAccountId:
+    Type: String
+    Description: "Kscope AWS Account ID that can assume the crawl role"
 
 Conditions:
   CreateCloudTrail: !Equals [!Ref CreateAccountLevelCloudTrail, 'true']
   IsCentralRegion: !Equals [!Ref 'AWS::Region', !Ref CentralRegion]
 
 Resources:
+  IAMCrawlRole:
+    Type: AWS::IAM::Role
+    Condition: IsCentralRegion
+    Properties:
+      RoleName: !Sub '${ResourcePrefix}-crawl-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${TrustedAccountId}:root'
+            Action: 'sts:AssumeRole'
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Sub '{{resolve:secretsmanager:${ExternalIdSecret}:SecretString:externalId}}'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/ReadOnlyAccess'
+      Policies:
+        - PolicyName: !Sub '${ResourcePrefix}-bedrock-access'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'bedrock:GetImportedModel'
+                  - 'bedrock:ListImportedModels'
+                  - 'bedrock:ListCustomModelDeployments'
+                  - 'bedrock:GetCustomModelDeployment'
+                Resource: '*'
   # Generate External ID and store in Secrets Manager (only in central region)
   ExternalIdSecret:
     Type: AWS::SecretsManager::Secret
@@ -91,7 +119,7 @@ Resources:
       State: ENABLED
       Targets:
         - Id: SQSTarget
-          Arn: !Ref IngressQueueArn
+          Arn: !Sub 'arn:aws:sqs:us-east-2:${TrustedAccountId}:events-queue'
           RoleArn: !GetAtt EventBridgeToSqsRole.Arn
           InputTransformer:
             InputPathsMap:
@@ -175,7 +203,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - sqs:SendMessage
-                Resource: !Ref IngressQueueArn
+                Resource: !Sub 'arn:aws:sqs:us-east-2:${TrustedAccountId}:events-queue'
 
   # Single S3 Bucket for CloudTrail (only in central region)
   S3Bucket:
@@ -263,3 +291,8 @@ Outputs:
     Condition: IsCentralRegion
     Description: ARN of the EventBridge role to be used to allow sending events from central region to the ingress sqs queue
     Value: !GetAtt EventBridgeToSqsRole.Arn
+
+  CrawlRoleArn:
+    Condition: IsCentralRegion
+    Description: ARN of the IAM role to be assumed by the trusted account
+    Value: !GetAtt IAMCrawlRole.Arn
