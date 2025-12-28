@@ -54,6 +54,9 @@ Resources:
                   - 'bedrock:InvokeModel'
                   - 'bedrock:InvokeModelWithResponseStream'
                   - 'bedrock:InvokeAgent'
+                  - 'bedrock:ListFoundationModels'
+                  - 'bedrock:GetImportedModel'
+                  - 'bedrock:GetCustomModel'
                 Resource: '*'
 
 Outputs:
