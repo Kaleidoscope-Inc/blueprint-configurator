@@ -67,12 +67,12 @@ Resources:
                   - 'bedrock:ListCustomModelDeployments'
                   - 'bedrock:GetCustomModelDeployment'
                 Resource: '*'
-  # IAM Role for CloudFormation Stack Creation (only in central region)
-  IAMCloudFormationRole:
+  # IAM Role for Remediation (only in central region)
+  IAMRemediatorRole:
     Type: AWS::IAM::Role
     Condition: IsCentralRegion
     Properties:
-      RoleName: !Sub '${ResourcePrefix}-cloudformation-role'
+      RoleName: !Sub '${ResourcePrefix}-remediator-role'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -84,7 +84,7 @@ Resources:
               StringEquals:
                 sts:ExternalId: !Sub '{{resolve:secretsmanager:${ExternalIdSecret}:SecretString:externalId}}'
       Policies:
-        - PolicyName: !Sub '${ResourcePrefix}-cloudformation-access'
+        - PolicyName: !Sub '${ResourcePrefix}-remediator-access'
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -323,7 +323,7 @@ Outputs:
     Description: ARN of the IAM role to be assumed by the trusted account
     Value: !GetAtt IAMCrawlRole.Arn
 
-  CloudFormationRoleArn:
+  RemediatorRoleArn:
     Condition: IsCentralRegion
-    Description: ARN of the IAM role for CloudFormation stack creation
-    Value: !GetAtt IAMCloudFormationRole.Arn
+    Description: ARN of the IAM role for remediation
+    Value: !GetAtt IAMRemediatorRole.Arn
