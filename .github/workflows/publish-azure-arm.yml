@@ -1,0 +1,78 @@
+name: Publish Azure ARM Template
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'azure_arm/azuredeploy.json'
+      - 'azure_arm/azuredeploy.parameters.json'
+
+jobs:
+  publish-to-s3:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write     # required for OIDC
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for tags
+
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ vars.AWS_RELEASE_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Get version info
+        id: version
+        run: |
+          # Extract version from git
+          GIT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          VERSION=$(echo $GIT_TAG | sed 's/^v//')
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          
+          # Set outputs for use in later steps
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "commit=${COMMIT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Upload Azure ARM template with version
+        run: |
+          # Upload versioned template
+          aws s3 cp azure_arm/azuredeploy.json \
+            s3://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}/azure/azuredeploy-${{ steps.version.outputs.version }}-${{ steps.version.outputs.commit }}.json \
+            --content-type "application/json"
+          
+          # Upload as latest
+          aws s3 cp azure_arm/azuredeploy.json \
+            s3://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}/azure/azuredeploy-latest.json \
+            --content-type "application/json"
+
+      - name: Upload Azure ARM parameters with version
+        run: |
+          # Upload versioned parameters
+          aws s3 cp azure_arm/azuredeploy.parameters.json \
+            s3://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}/azure/azuredeploy.parameters-${{ steps.version.outputs.version }}-${{ steps.version.outputs.commit }}.json \
+            --content-type "application/json"
+          
+          # Upload as latest
+          aws s3 cp azure_arm/azuredeploy.parameters.json \
+            s3://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}/azure/azuredeploy.parameters-latest.json \
+            --content-type "application/json"
+
+      - name: Output template URLs
+        run: |
+          echo "Azure ARM Templates published successfully!"
+          echo ""
+          echo "=== Azure ARM Templates ==="
+          echo "Latest template URL: https://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}.s3.amazonaws.com/azure/azuredeploy-latest.json"
+          echo "Versioned template URL: https://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}.s3.amazonaws.com/azure/azuredeploy-${{ steps.version.outputs.version }}-${{ steps.version.outputs.commit }}.json"
+          echo ""
+          echo "Latest parameters URL: https://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}.s3.amazonaws.com/azure/azuredeploy.parameters-latest.json"
+          echo "Versioned parameters URL: https://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}.s3.amazonaws.com/azure/azuredeploy.parameters-${{ steps.version.outputs.version }}-${{ steps.version.outputs.commit }}.json"
+          echo ""
+          echo "=== Deployment Scripts ==="
+          echo "PowerShell script URL: https://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}.s3.amazonaws.com/azure/deploy.ps1"
+          echo "Bash script URL: https://${{ vars.BLUEPRINT_CONFIGURATOR_BUCKET_NAME }}.s3.amazonaws.com/azure/deploy.sh"
