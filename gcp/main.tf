@@ -47,10 +47,17 @@ locals {
   ]
 
   service_api_roles = {
+    "compute.googleapis.com"              = ["roles/compute.securityAdmin", "roles/compute.viewer"]
+    "container.googleapis.com"            = ["roles/container.viewer"]
+    "sqladmin.googleapis.com"             = ["roles/cloudsql.viewer"]
+    "cloudfunctions.googleapis.com"       = ["roles/cloudfunctions.viewer"]
+    "run.googleapis.com"                  = ["roles/run.viewer"]
+    "redis.googleapis.com"                = ["roles/redis.viewer"]
+    "firebase.googleapis.com"             = ["roles/firebase.viewer"]
+    "artifactregistry.googleapis.com"     = ["roles/artifactregistry.reader"]
     "cloudkms.googleapis.com"             = ["roles/cloudkms.viewer"]
     "secretmanager.googleapis.com"        = ["roles/secretmanager.viewer"]
     "bigquery.googleapis.com"             = ["roles/bigquery.dataViewer"]
-    "compute.googleapis.com"              = ["roles/compute.securityAdmin", "roles/compute.viewer"]
     "accesscontextmanager.googleapis.com" = ["roles/accesscontextmanager.policyReader"]
     "cloudbuild.googleapis.com"           = ["roles/cloudbuild.builds.viewer"]
     "datastore.googleapis.com"            = ["roles/datastore.viewer"]
