@@ -1,0 +1,61 @@
+name: Publish GCP Terraform Configs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'gcp/**'
+
+jobs:
+  publish-to-gcs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write     # required for Workload Identity Federation
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get version info
+        id: version
+        run: |
+          GIT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          VERSION=$(echo $GIT_TAG | sed 's/^v//')
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "commit=${COMMIT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Package and upload GCP Terraform configs
+        run: |
+          # Package Terraform files
+          cd gcp
+          zip blueprint.zip main.tf variables.tf outputs.tf
+          cd ..
+
+          # Upload versioned
+          gsutil cp gcp/blueprint.zip \
+            gs://${{ vars.GCP_BLUEPRINT_BUCKET_NAME }}/gcp/gcp-${{ steps.version.outputs.version }}-${{ steps.version.outputs.commit }}.zip
+
+          # Upload as latest
+          gsutil cp gcp/blueprint.zip \
+            gs://${{ vars.GCP_BLUEPRINT_BUCKET_NAME }}/gcp/gcp-latest.zip
+
+      - name: Output config URLs
+        run: |
+          echo "GCP Terraform configs published successfully!"
+          echo ""
+          echo "Latest: gs://${{ vars.GCP_BLUEPRINT_BUCKET_NAME }}/gcp/gcp-latest.zip"
+          echo "Versioned: gs://${{ vars.GCP_BLUEPRINT_BUCKET_NAME }}/gcp/gcp-${{ steps.version.outputs.version }}-${{ steps.version.outputs.commit }}.zip"
