@@ -71,6 +71,7 @@ locals {
     "spanner.googleapis.com"              = ["roles/spanner.viewer"]
     "cloudtasks.googleapis.com"           = ["roles/cloudtasks.viewer"]
     "deploymentmanager.googleapis.com"    = ["roles/deploymentmanager.viewer"]
+    "config.googleapis.com"               = ["roles/config.viewer"]
   }
 
   enabled_service_roles = flatten([
