@@ -1,10 +1,10 @@
 # Blueprint-configurator Repository
 
-This repository contains infrastructure-as-code templates to prepare different operational sources to be crawled by Kaleidoscope. It currently has support for Azure and AWS.
+This repository contains infrastructure-as-code templates to prepare different operational sources to be crawled by Kaleidoscope. It currently has support for AWS, Azure, and GCP.
 
 ## Overview of Kaleidoscope crawler logic
 
-The crawler logic involves systematically scanning and ingesting data and events from cloud resources. This process includes setting up infrastructure to capture information from various sources within the cloud environment, such as AWS and Azure. There are two types of crawl:
+The crawler logic involves systematically scanning and ingesting data and events from cloud resources. This process includes setting up infrastructure to capture information from various sources within the cloud environment, such as AWS, Azure, and GCP. There are two types of crawl:
 
 - **Data Crawl:** 
   - Involves systematically scanning and gathering information about the configuration, usage, and metadata of cloud resources.
@@ -33,6 +33,13 @@ AWS blueprint can be configured using either CloudFormation or Terraform:
 
 - **Terraform**: We maintain Terraform scripts for AWS as an alternative option.
   - [Read more](./aws/README.md)
+
+### GCP Module
+
+Terraform configuration to create a read-only service account with 20 IAM roles for Kaleidoscope crawling:
+
+- **Terraform**: Creates service account, binds IAM roles, and outputs credentials. Published to GCS for customer access.
+  - [Read more](./gcp/README.md)
 
 ### AWS AI DAST Module
 
