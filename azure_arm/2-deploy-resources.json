@@ -1,0 +1,147 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "managedIdentityName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the managed identity created in the first template (e.g., 'kaleidoscope-deployment-identity')"
+      }
+    },
+    "storageAccountName": {
+      "type": "string",
+      "defaultValue": "k6scopemystorageaccount",
+      "metadata": {
+        "description": "Name of the storage account (must be globally unique)"
+      }
+    },
+    "storageContainerName": {
+      "type": "string",
+      "defaultValue": "kaleidoscopeactivitylogscontainer",
+      "metadata": {
+        "description": "Name of the blob container"
+      }
+    },
+    "storageQueueName": {
+      "type": "string",
+      "defaultValue": "kaleidoscopeactivitylogsqueue",
+      "metadata": {
+        "description": "Name of the storage queue"
+      }
+    },
+    "applicationDisplayName": {
+      "type": "string",
+      "defaultValue": "kaleidoscope-blueprint",
+      "metadata": {
+        "description": "Display name for the Azure AD application"
+      }
+    }
+  },
+  "variables": {
+    "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+    "managedIdentityResourceId": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('managedIdentityName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-01-01",
+      "name": "[parameters('storageAccountName')]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "supportsHttpsTrafficOnly": true,
+        "minimumTlsVersion": "TLS1_2"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-01-01",
+      "name": "[concat(parameters('storageAccountName'), '/default/', parameters('storageContainerName'))]",
+      "dependsOn": [
+        "[variables('storageAccountId')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/queueServices/queues",
+      "apiVersion": "2023-01-01",
+      "name": "[concat(parameters('storageAccountName'), '/default/', parameters('storageQueueName'))]",
+      "dependsOn": [
+        "[variables('storageAccountId')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deploymentScripts",
+      "apiVersion": "2023-08-01",
+      "name": "createAzureAdAppAndAssignRoles",
+      "location": "[resourceGroup().location]",
+      "kind": "AzureCLI",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[variables('managedIdentityResourceId')]": {}
+        }
+      },
+      "dependsOn": [
+        "[variables('storageAccountId')]"
+      ],
+      "properties": {
+        "azCliVersion": "2.52.0",
+        "timeout": "PT30M",
+        "retentionInterval": "P1D",
+        "cleanupPreference": "OnSuccess",
+        "scriptContent": "#!/bin/bash\nset -euo pipefail\n\necho \"Starting deployment script...\"\n\n# Get tenant ID\nTENANT_ID=$(az account show --query tenantId -o tsv)\n\necho \"Tenant ID: $TENANT_ID\"\necho \"Subscription ID: $SUBSCRIPTION_ID\"\n\n# Microsoft Graph App ID\nMSGRAPH_APP_ID='00000003-0000-0000-c000-000000000000'\n\n# Check for existing app or create new one\necho \"Checking for existing application: $APP_DISPLAY_NAME\"\nAPP_ID=$(az ad app list --display-name \"$APP_DISPLAY_NAME\" --query '[0].appId' -o tsv)\nif [ -z \"$APP_ID\" ] || [ \"$APP_ID\" = \"null\" ]; then\n  echo \"Creating new application...\"\n  APP_ID=$(az ad app create --display-name \"$APP_DISPLAY_NAME\" --query appId -o tsv)\n  echo \"Created application with ID: $APP_ID\"\nelse\n  echo \"Found existing application with ID: $APP_ID\"\nfi\n\n# Get permission IDs for Microsoft Graph\necho \"Getting Microsoft Graph permission IDs...\"\nUSER_READ_ALL=$(az ad sp show --id \"$MSGRAPH_APP_ID\" --query \"appRoles[?value=='User.Read.All'].id\" -o tsv)\nGROUP_READ_ALL=$(az ad sp show --id \"$MSGRAPH_APP_ID\" --query \"appRoles[?value=='Group.Read.All'].id\" -o tsv)\nROLE_MGMT_READ_ALL=$(az ad sp show --id \"$MSGRAPH_APP_ID\" --query \"appRoles[?value=='RoleManagement.Read.All'].id\" -o tsv)\n\n# Add Microsoft Graph permissions\necho \"Adding Microsoft Graph permissions...\"\naz ad app permission add --id \"$APP_ID\" --api \"$MSGRAPH_APP_ID\" --api-permissions \"$USER_READ_ALL=Role\" 2>/dev/null || echo \"Permission User.Read.All already exists\"\naz ad app permission add --id \"$APP_ID\" --api \"$MSGRAPH_APP_ID\" --api-permissions \"$GROUP_READ_ALL=Role\" 2>/dev/null || echo \"Permission Group.Read.All already exists\"\naz ad app permission add --id \"$APP_ID\" --api \"$MSGRAPH_APP_ID\" --api-permissions \"$ROLE_MGMT_READ_ALL=Role\" 2>/dev/null || echo \"Permission RoleManagement.Read.All already exists\"\n\n# Check for existing service principal or create new one\necho \"Checking for service principal...\"\nSP_ID=$(az ad sp list --filter \"appId eq '$APP_ID'\" --query '[0].id' -o tsv)\nif [ -z \"$SP_ID\" ] || [ \"$SP_ID\" = \"null\" ]; then\n  echo \"Creating service principal...\"\n  SP_ID=$(az ad sp create --id \"$APP_ID\" --query id -o tsv)\n  echo \"Created service principal with ID: $SP_ID\"\nelse\n  echo \"Found existing service principal with ID: $SP_ID\"\nfi\n\n# Reset/create client secret\necho \"Generating new client secret...\"\nCLIENT_SECRET=$(az ad app credential reset --id \"$APP_ID\" --query password -o tsv)\necho \"Client secret generated successfully\"\n\n# Assign Reader role at subscription scope\necho \"Assigning Reader role at subscription scope...\"\nEXISTING_ROLE=$(az role assignment list --assignee $SP_ID --role Reader --scope /subscriptions/$SUBSCRIPTION_ID --query '[0].id' -o tsv)\nif [ -z \"$EXISTING_ROLE\" ] || [ \"$EXISTING_ROLE\" = \"null\" ]; then\n  az role assignment create --assignee $SP_ID --role Reader --scope /subscriptions/$SUBSCRIPTION_ID\n  echo \"Reader role assigned\"\nelse\n  echo \"Reader role already assigned\"\nfi\n\n# Assign Management Group Reader role at root management group scope\necho \"Assigning Management Group Reader role...\"\nMG_SCOPE=\"/providers/Microsoft.Management/managementGroups/$TENANT_ID\"\nEXISTING_MG_ROLE=$(az role assignment list --assignee $SP_ID --role \"Management Group Reader\" --scope \"$MG_SCOPE\" --query '[0].id' -o tsv 2>/dev/null || echo \"\")\nif [ -z \"$EXISTING_MG_ROLE\" ] || [ \"$EXISTING_MG_ROLE\" = \"null\" ]; then\n  az role assignment create --assignee $SP_ID --role \"Management Group Reader\" --scope \"$MG_SCOPE\" 2>/dev/null && echo \"Management Group Reader role assigned\" || echo \"⚠️  Warning: Could not assign Management Group Reader role. You may need to assign this manually.\"\nelse\n  echo \"Management Group Reader role already assigned\"\nfi\n\n# Assign AcrPull role to all ACR registries in the subscription\necho \"Checking for ACR registries...\"\nACR_REGISTRIES=$(az acr list --subscription $SUBSCRIPTION_ID --query '[].{id:id}' -o tsv)\nif [ -z \"$ACR_REGISTRIES\" ]; then\n  echo \"No ACR registries found in subscription\"\nelse\n  echo \"Assigning AcrPull role...\"\n  for ACR_ID in $ACR_REGISTRIES; do\n    echo \"Processing ACR: $ACR_ID\"\n    EXISTING_ACR_ROLE=$(az role assignment list --assignee $SP_ID --role AcrPull --scope $ACR_ID --query '[0].id' -o tsv 2>/dev/null || echo \"\")\n    if [ -z \"$EXISTING_ACR_ROLE\" ] || [ \"$EXISTING_ACR_ROLE\" = \"null\" ]; then\n      az role assignment create --assignee $SP_ID --role AcrPull --scope $ACR_ID 2>/dev/null && echo \"AcrPull role assigned for $ACR_ID\" || echo \"⚠️  Warning: Could not assign AcrPull role for $ACR_ID. You may need to assign this manually.\"\n    else\n      echo \"AcrPull role already assigned for $ACR_ID\"\n    fi\n  done\nfi\n\necho \"Deployment script completed successfully!\"\n\n# Output results as JSON\necho \"{\\\"clientId\\\":\\\"$APP_ID\\\",\\\"clientSecret\\\":\\\"$CLIENT_SECRET\\\",\\\"servicePrincipalObjectId\\\":\\\"$SP_ID\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH",
+        "environmentVariables": [
+          {
+            "name": "APP_DISPLAY_NAME",
+            "value": "[parameters('applicationDisplayName')]"
+          },
+          {
+            "name": "SUBSCRIPTION_ID",
+            "value": "[subscription().subscriptionId]"
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "clientId": {
+      "type": "string",
+      "value": "[reference('createAzureAdAppAndAssignRoles').outputs.clientId]"
+    },
+    "clientSecret": {
+      "type": "string",
+      "value": "[reference('createAzureAdAppAndAssignRoles').outputs.clientSecret]"
+    },
+    "tenantId": {
+      "type": "string",
+      "value": "[subscription().tenantId]"
+    },
+    "subscriptionId": {
+      "type": "string",
+      "value": "[subscription().subscriptionId]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "value": "[parameters('storageAccountName')]"
+    },
+    "storageQueueName": {
+      "type": "string",
+      "value": "[parameters('storageQueueName')]"
+    },
+    "storageAccountKey": {
+      "type": "string",
+      "value": "[listKeys(variables('storageAccountId'), '2023-01-01').keys[0].value]"
+    },
+    "storageContainerName": {
+      "type": "string",
+      "value": "[parameters('storageContainerName')]"
+    },
+    "servicePrincipalObjectId": {
+      "type": "string",
+      "value": "[reference('createAzureAdAppAndAssignRoles').outputs.servicePrincipalObjectId]"
+    }
+  }
+}
