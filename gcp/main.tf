@@ -7,6 +7,10 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 5.0"
     }
+    http = {
+      source  = "hashicorp/http"
+      version = "~> 3.0"
+    }
   }
 }
 
@@ -21,30 +25,53 @@ resource "google_service_account" "kscope_crawl" {
   description  = "Read-only service account used by Kaleidoscope to crawl GCP resources"
 }
 
-# All required IAM role bindings — read-only access across GCP services
+# Query the Service Usage API to discover which APIs are enabled in the project
+data "google_client_config" "current" {}
+
+data "http" "enabled_services" {
+  url = "https://serviceusage.googleapis.com/v1/projects/${var.project_id}/services?filter=state:ENABLED&pageSize=200"
+  request_headers = {
+    Authorization = "Bearer ${data.google_client_config.current.access_token}"
+  }
+}
+
+# Map each GCP API to the IAM roles it requires
 locals {
-  required_roles = [
-    "roles/viewer",                              # Compute, DNS, GKE, Storage, Cloud Functions, Cloud Run, Pub/Sub, Logging, Monitoring, Artifact Registry, Memorystore, Firebase, VPC, NAT, LB, Cloud SQL, Endpoints
-    "roles/cloudkms.viewer",                     # Cloud KMS (key rings, crypto keys, key versions)
-    "roles/secretmanager.viewer",                # Secret Manager (secret metadata — does not expose secret values)
-    "roles/iam.securityReviewer",                # IAM policies, Cloud Audit Logs, Identity Platform
-    "roles/bigquery.dataViewer",                 # BigQuery datasets and tables (read-only metadata and schema)
-    "roles/compute.securityAdmin",               # Cloud Armor security policies and rules
-    "roles/accesscontextmanager.policyReader",   # VPC Service Controls access policies, service perimeters
-    "roles/cloudbuild.builds.viewer",            # Cloud Build triggers, worker pools, builds
-    "roles/datastore.viewer",                    # Firestore databases, indexes, collection groups
-    "roles/file.viewer",                         # Cloud Filestore instances, snapshots, backups
-    "roles/apigateway.viewer",                   # API Gateway APIs, gateways, configurations
-    "roles/aiplatform.viewer",                   # Vertex AI models, endpoints, training pipelines
-    "roles/eventarc.viewer",                     # Eventarc triggers, channels, channel connections
-    "roles/workflows.viewer",                    # Cloud Workflows definitions and executions
-    "roles/dataproc.viewer",                     # Dataproc clusters, jobs, workflow templates
-    "roles/composer.viewer",                     # Cloud Composer environments and configurations
-    "roles/spanner.viewer",                      # Cloud Spanner instances and databases
-    "roles/cloudtasks.viewer",                   # Cloud Tasks queues and task metadata
-    "roles/compute.viewer",                      # Cloud CDN backend services and cache policies
-    "roles/deploymentmanager.viewer",            # Deployment Manager deployments and resources
+  enabled_apis = toset([
+    for svc in jsondecode(data.http.enabled_services.response_body).services : svc.config.name
+  ])
+
+  core_roles = [
+    "roles/viewer",
+    "roles/iam.securityReviewer",
   ]
+
+  service_api_roles = {
+    "cloudkms.googleapis.com"             = ["roles/cloudkms.viewer"]
+    "secretmanager.googleapis.com"        = ["roles/secretmanager.viewer"]
+    "bigquery.googleapis.com"             = ["roles/bigquery.dataViewer"]
+    "compute.googleapis.com"              = ["roles/compute.securityAdmin", "roles/compute.viewer"]
+    "accesscontextmanager.googleapis.com" = ["roles/accesscontextmanager.policyReader"]
+    "cloudbuild.googleapis.com"           = ["roles/cloudbuild.builds.viewer"]
+    "datastore.googleapis.com"            = ["roles/datastore.viewer"]
+    "file.googleapis.com"                 = ["roles/file.viewer"]
+    "apigateway.googleapis.com"           = ["roles/apigateway.viewer"]
+    "aiplatform.googleapis.com"           = ["roles/aiplatform.viewer"]
+    "eventarc.googleapis.com"             = ["roles/eventarc.viewer"]
+    "workflows.googleapis.com"            = ["roles/workflows.viewer"]
+    "dataproc.googleapis.com"             = ["roles/dataproc.viewer"]
+    "composer.googleapis.com"             = ["roles/composer.viewer"]
+    "spanner.googleapis.com"              = ["roles/spanner.viewer"]
+    "cloudtasks.googleapis.com"           = ["roles/cloudtasks.viewer"]
+    "deploymentmanager.googleapis.com"    = ["roles/deploymentmanager.viewer"]
+  }
+
+  enabled_service_roles = flatten([
+    for api, roles in local.service_api_roles : roles
+    if contains(local.enabled_apis, api)
+  ])
+
+  required_roles = concat(local.core_roles, local.enabled_service_roles)
 }
 
 resource "google_project_iam_member" "kscope_crawl_roles" {
