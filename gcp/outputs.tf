@@ -15,7 +15,13 @@ output "client_id" {
 
 output "private_key_id" {
   description = "Private key ID — use as 'Private Key ID' in Kaleidoscope"
-  value       = google_service_account_key.kscope_crawl.private_key
+  value       = jsondecode(base64decode(google_service_account_key.kscope_crawl.private_key)).private_key_id
+  sensitive   = true
+}
+
+output "private_key" {
+  description = "Private key — use as 'Private Key' in Kaleidoscope"
+  value       = jsondecode(base64decode(google_service_account_key.kscope_crawl.private_key)).private_key
   sensitive   = true
 }
 
