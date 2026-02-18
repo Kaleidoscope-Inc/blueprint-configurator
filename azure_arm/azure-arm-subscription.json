@@ -1,0 +1,132 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "resourceGroupName": {
+      "type": "string",
+      "defaultValue": "kaleidoscope-blueprint-rg",
+      "metadata": {
+        "description": "Name of the resource group to create"
+      }
+    },
+    "resourceGroupLocation": {
+      "type": "string",
+      "defaultValue": "eastus",
+      "metadata": {
+        "description": "Location for the resource group"
+      }
+    },
+    "userAssignedIdentityName": {
+      "type": "string",
+      "defaultValue": "kaleidoscope-deployment-identity",
+      "metadata": {
+        "description": "Name of the managed identity"
+      }
+    }
+  },
+  "variables": {
+    "userAccessAdministratorRoleId": "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2021-04-01",
+      "name": "[parameters('resourceGroupName')]",
+      "location": "[parameters('resourceGroupLocation')]"
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "identity-deployment",
+      "resourceGroup": "[parameters('resourceGroupName')]",
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "parameters": {
+          "userAssignedIdentityName": {
+            "value": "[parameters('userAssignedIdentityName')]"
+          },
+          "resourceGroupLocation": {
+            "value": "[parameters('resourceGroupLocation')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "userAssignedIdentityName": {
+              "type": "string"
+            },
+            "resourceGroupLocation": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+              "apiVersion": "2023-01-31",
+              "name": "[parameters('userAssignedIdentityName')]",
+              "location": "[parameters('resourceGroupLocation')]"
+            }
+          ],
+          "outputs": {
+            "principalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('userAssignedIdentityName')), '2023-01-31').principalId]"
+            },
+            "resourceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('userAssignedIdentityName'))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(subscription().subscriptionId, parameters('userAssignedIdentityName'), variables('userAccessAdministratorRoleId'))]",
+      "dependsOn": [
+        "identity-deployment"
+      ],
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('userAccessAdministratorRoleId'))]",
+        "principalId": "[reference('identity-deployment').outputs.principalId.value]",
+        "principalType": "ServicePrincipal"
+      }
+    }
+  ],
+  "outputs": {
+    "resourceGroupName": {
+      "type": "string",
+      "value": "[parameters('resourceGroupName')]"
+    },
+    "managedIdentityName": {
+      "type": "string",
+      "value": "[parameters('userAssignedIdentityName')]"
+    },
+    "managedIdentityPrincipalId": {
+      "type": "string",
+      "value": "[reference('identity-deployment').outputs.principalId.value]",
+      "metadata": {
+        "description": "⚠️ NEXT STEP: Assign 'Application Administrator' role to this Principal ID in Entra ID"
+      }
+    },
+    "managedIdentityResourceId": {
+      "type": "string",
+      "value": "[reference('identity-deployment').outputs.resourceId.value]",
+      "metadata": {
+        "description": "Use this as input for the second ARM template"
+      }
+    },
+    "nextSteps": {
+      "type": "string",
+      "value": "1. Copy the managedIdentityPrincipalId above\n2. Go to Entra ID → Roles and administrators → Application Administrator\n3. Add assignment → Paste the Principal ID\n4. Run the second ARM template (2-deploy-resources.json) with the managedIdentityResourceId\n\n✅ User Access Administrator role automatically assigned to managed identity at subscription level"
+    }
+  }
+}
