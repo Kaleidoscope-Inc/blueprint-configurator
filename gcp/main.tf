@@ -72,6 +72,10 @@ locals {
     "cloudtasks.googleapis.com"           = ["roles/cloudtasks.viewer"]
     "deploymentmanager.googleapis.com"    = ["roles/deploymentmanager.viewer"]
     "config.googleapis.com"               = ["roles/config.viewer"]
+    "alloydb.googleapis.com"              = ["roles/alloydb.viewer"]
+    "bigtableadmin.googleapis.com"        = ["roles/bigtable.viewer"]
+    "datacatalog.googleapis.com"          = ["roles/datacatalog.viewer"]
+    "dataflow.googleapis.com"             = ["roles/dataflow.viewer"]
   }
 
   enabled_service_roles = flatten([
