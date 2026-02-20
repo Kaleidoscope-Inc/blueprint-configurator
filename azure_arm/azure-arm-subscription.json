@@ -22,10 +22,22 @@
       "metadata": {
         "description": "Name of the managed identity"
       }
+    },
+    "skipRoleAssignment": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Set to true if role assignment already exists (subsequent deployments)"
+      }
     }
   },
   "variables": {
-    "userAccessAdministratorRoleId": "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9"
+    "userAccessAdministratorRoleId": "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9",
+    "managementGroupReaderRoleId": "ac63b705-f282-497d-ac71-919bf39d939d",
+    "roleAssignmentName": "[guid(subscription().subscriptionId, parameters('userAssignedIdentityName'), '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9')]",
+    "mgRoleAssignmentName": "[guid(tenant().tenantId, parameters('userAssignedIdentityName'), 'ac63b705-f282-497d-ac71-919bf39d939d')]",
+    "mgUserAccessAdminRoleAssignmentName": "[guid(tenant().tenantId, parameters('userAssignedIdentityName'), '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9-mg')]",
+    "managementGroupScope": "[concat('/providers/Microsoft.Management/managementGroups/', tenant().tenantId)]"
   },
   "resources": [
     {
@@ -90,14 +102,48 @@
     {
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
-      "name": "[guid(subscription().subscriptionId, parameters('userAssignedIdentityName'), variables('userAccessAdministratorRoleId'))]",
+      "name": "[variables('roleAssignmentName')]",
+      "condition": "[not(parameters('skipRoleAssignment'))]",
       "dependsOn": [
         "identity-deployment"
       ],
       "properties": {
         "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('userAccessAdministratorRoleId'))]",
         "principalId": "[reference('identity-deployment').outputs.principalId.value]",
-        "principalType": "ServicePrincipal"
+        "principalType": "ServicePrincipal",
+        "description": "User Access Administrator role for Kaleidoscope managed identity"
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[variables('mgRoleAssignmentName')]",
+      "scope": "[variables('managementGroupScope')]",
+      "condition": "[not(parameters('skipRoleAssignment'))]",
+      "dependsOn": [
+        "identity-deployment"
+      ],
+      "properties": {
+        "roleDefinitionId": "[tenantResourceId('Microsoft.Authorization/roleDefinitions', variables('managementGroupReaderRoleId'))]",
+        "principalId": "[reference('identity-deployment').outputs.principalId.value]",
+        "principalType": "ServicePrincipal",
+        "description": "Management Group Reader role for Kaleidoscope managed identity to read management groups"
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[variables('mgUserAccessAdminRoleAssignmentName')]",
+      "scope": "[variables('managementGroupScope')]",
+      "condition": "[not(parameters('skipRoleAssignment'))]",
+      "dependsOn": [
+        "identity-deployment"
+      ],
+      "properties": {
+        "roleDefinitionId": "[tenantResourceId('Microsoft.Authorization/roleDefinitions', variables('userAccessAdministratorRoleId'))]",
+        "principalId": "[reference('identity-deployment').outputs.principalId.value]",
+        "principalType": "ServicePrincipal",
+        "description": "User Access Administrator role at management group scope to assign roles"
       }
     }
   ],
@@ -123,10 +169,6 @@
       "metadata": {
         "description": "Use this as input for the second ARM template"
       }
-    },
-    "nextSteps": {
-      "type": "string",
-      "value": "1. Copy the managedIdentityPrincipalId above\n2. Go to Entra ID → Roles and administrators → Application Administrator\n3. Add assignment → Paste the Principal ID\n4. Run the second ARM template (2-deploy-resources.json) with the managedIdentityResourceId\n\n✅ User Access Administrator role automatically assigned to managed identity at subscription level"
     }
   }
 }
