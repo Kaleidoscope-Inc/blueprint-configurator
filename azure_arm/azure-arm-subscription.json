@@ -33,7 +33,11 @@
   },
   "variables": {
     "userAccessAdministratorRoleId": "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9",
-    "roleAssignmentName": "[guid(subscription().subscriptionId, parameters('userAssignedIdentityName'), '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9')]"
+    "managementGroupReaderRoleId": "ac63b705-f282-497d-ac71-919bf39d939d",
+    "roleAssignmentName": "[guid(subscription().subscriptionId, parameters('userAssignedIdentityName'), '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9')]",
+    "mgRoleAssignmentName": "[guid(tenant().tenantId, parameters('userAssignedIdentityName'), 'ac63b705-f282-497d-ac71-919bf39d939d')]",
+    "mgUserAccessAdminRoleAssignmentName": "[guid(tenant().tenantId, parameters('userAssignedIdentityName'), '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9-mg')]",
+    "managementGroupScope": "[concat('/providers/Microsoft.Management/managementGroups/', tenant().tenantId)]"
   },
   "resources": [
     {
@@ -109,6 +113,38 @@
         "principalType": "ServicePrincipal",
         "description": "User Access Administrator role for Kaleidoscope managed identity"
       }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[variables('mgRoleAssignmentName')]",
+      "scope": "[variables('managementGroupScope')]",
+      "condition": "[not(parameters('skipRoleAssignment'))]",
+      "dependsOn": [
+        "identity-deployment"
+      ],
+      "properties": {
+        "roleDefinitionId": "[tenantResourceId('Microsoft.Authorization/roleDefinitions', variables('managementGroupReaderRoleId'))]",
+        "principalId": "[reference('identity-deployment').outputs.principalId.value]",
+        "principalType": "ServicePrincipal",
+        "description": "Management Group Reader role for Kaleidoscope managed identity to read management groups"
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[variables('mgUserAccessAdminRoleAssignmentName')]",
+      "scope": "[variables('managementGroupScope')]",
+      "condition": "[not(parameters('skipRoleAssignment'))]",
+      "dependsOn": [
+        "identity-deployment"
+      ],
+      "properties": {
+        "roleDefinitionId": "[tenantResourceId('Microsoft.Authorization/roleDefinitions', variables('userAccessAdministratorRoleId'))]",
+        "principalId": "[reference('identity-deployment').outputs.principalId.value]",
+        "principalType": "ServicePrincipal",
+        "description": "User Access Administrator role at management group scope to assign roles"
+      }
     }
   ],
   "outputs": {
@@ -136,7 +172,7 @@
     },
     "nextSteps": {
       "type": "string",
-      "value": "[concat('✅ DEPLOYMENT COMPLETE\\n\\nNEXT STEPS:\\n1. Assign Entra ID role:\\n   - Go to Entra ID → Roles and administrators → Application Administrator\\n   - Add assignment → Principal ID: ', reference('identity-deployment').outputs.principalId.value, '\\n\\n2. Run the second ARM template:\\n   az deployment group create --resource-group ', parameters('resourceGroupName'), ' --template-file azure-arm-resource.json\\n\\n', if(not(parameters('skipRoleAssignment')), '⚠️  On next deployment, add: --parameters skipRoleAssignment=true', 'Role assignment was skipped (already exists)'))]"
+      "value": "[concat('✅ DEPLOYMENT COMPLETE\\n\\nRole Assignments ', if(not(parameters('skipRoleAssignment')), 'Created', 'Skipped'), ':\\n- User Access Administrator (Subscription scope)\\n- Management Group Reader (Management Group scope)\\n- User Access Administrator (Management Group scope)\\n\\nNEXT STEPS:\\n1. Assign Entra ID role:\\n   - Go to Entra ID → Roles and administrators → Application Administrator\\n   - Add assignment → Principal ID: ', reference('identity-deployment').outputs.principalId.value, '\\n\\n2. Run the second ARM template:\\n   az deployment group create --resource-group ', parameters('resourceGroupName'), ' --template-file azure-arm-resource.json\\n\\n', if(not(parameters('skipRoleAssignment')), '⚠️  On next deployment, add: --parameters skipRoleAssignment=true', ''))]"
     }
   }
 }
