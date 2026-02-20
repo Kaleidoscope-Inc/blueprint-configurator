@@ -169,10 +169,6 @@
       "metadata": {
         "description": "Use this as input for the second ARM template"
       }
-    },
-    "nextSteps": {
-      "type": "string",
-      "value": "[concat('✅ DEPLOYMENT COMPLETE\\n\\nRole Assignments ', if(not(parameters('skipRoleAssignment')), 'Created', 'Skipped'), ':\\n- User Access Administrator (Subscription scope)\\n- Management Group Reader (Management Group scope)\\n- User Access Administrator (Management Group scope)\\n\\nNEXT STEPS:\\n1. Assign Entra ID role:\\n   - Go to Entra ID → Roles and administrators → Application Administrator\\n   - Add assignment → Principal ID: ', reference('identity-deployment').outputs.principalId.value, '\\n\\n2. Run the second ARM template:\\n   az deployment group create --resource-group ', parameters('resourceGroupName'), ' --template-file azure-arm-resource.json\\n\\n', if(not(parameters('skipRoleAssignment')), '⚠️  On next deployment, add: --parameters skipRoleAssignment=true', ''))]"
     }
   }
 }
