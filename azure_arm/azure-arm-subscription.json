@@ -22,10 +22,18 @@
       "metadata": {
         "description": "Name of the managed identity"
       }
+    },
+    "skipRoleAssignment": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Set to true if role assignment already exists (subsequent deployments)"
+      }
     }
   },
   "variables": {
-    "userAccessAdministratorRoleId": "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9"
+    "userAccessAdministratorRoleId": "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9",
+    "roleAssignmentName": "[guid(subscription().subscriptionId, parameters('userAssignedIdentityName'), '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9')]"
   },
   "resources": [
     {
@@ -90,14 +98,16 @@
     {
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
-      "name": "[guid(subscription().subscriptionId, parameters('userAssignedIdentityName'), variables('userAccessAdministratorRoleId'))]",
+      "name": "[variables('roleAssignmentName')]",
+      "condition": "[not(parameters('skipRoleAssignment'))]",
       "dependsOn": [
         "identity-deployment"
       ],
       "properties": {
         "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('userAccessAdministratorRoleId'))]",
         "principalId": "[reference('identity-deployment').outputs.principalId.value]",
-        "principalType": "ServicePrincipal"
+        "principalType": "ServicePrincipal",
+        "description": "User Access Administrator role for Kaleidoscope managed identity"
       }
     }
   ],
@@ -126,7 +136,7 @@
     },
     "nextSteps": {
       "type": "string",
-      "value": "1. Copy the managedIdentityPrincipalId above\n2. Go to Entra ID → Roles and administrators → Application Administrator\n3. Add assignment → Paste the Principal ID\n4. Run the second ARM template (2-deploy-resources.json) with the managedIdentityResourceId\n\n✅ User Access Administrator role automatically assigned to managed identity at subscription level"
+      "value": "[concat('✅ DEPLOYMENT COMPLETE\\n\\nNEXT STEPS:\\n1. Assign Entra ID role:\\n   - Go to Entra ID → Roles and administrators → Application Administrator\\n   - Add assignment → Principal ID: ', reference('identity-deployment').outputs.principalId.value, '\\n\\n2. Run the second ARM template:\\n   az deployment group create --resource-group ', parameters('resourceGroupName'), ' --template-file azure-arm-resource.json\\n\\n', if(not(parameters('skipRoleAssignment')), '⚠️  On next deployment, add: --parameters skipRoleAssignment=true', 'Role assignment was skipped (already exists)'))]"
     }
   }
 }
